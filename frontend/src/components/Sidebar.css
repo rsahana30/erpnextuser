@@ -1,0 +1,8 @@
+/* Add to App.css or inline in your styles */
+.collapsed span {
+  display: none;
+}
+
+.collapsed .d-flex {
+  justify-content: center;
+}
