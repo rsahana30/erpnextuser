@@ -16,13 +16,21 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+
     try {
-      await axios.post("http://localhost:5000/api/login", form);
-      toast.success(`Welcome!`, {
+      const res = await axios.post("http://localhost:5000/api/login", form);
+
+
+      // Store token and user name
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("userName", res.data.user.name);
+
+      toast.success(`Welcome ${res.data.user.name}!`, {
         position: "top-center",
         autoClose: 3000,
         transition: Zoom,
       });
+
       setTimeout(() => navigate("/home"), 2500);
     } catch (err) {
       toast.error("Invalid credentials. Try again!", {

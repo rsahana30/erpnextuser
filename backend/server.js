@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const mysql = require("mysql2");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 dotenv.config();
 const app = express();
@@ -25,20 +27,25 @@ connection.connect((err) => {
 });
 
 // Signup
-app.post("/api/signup", (req, res) => {
+app.post("/api/signup", async (req, res) => {
   const { name, email, password } = req.body;
 
-  const checkUser = "SELECT * FROM users WHERE email = ?";
-  connection.query(checkUser, [email], (err, result) => {
+  connection.query("SELECT * FROM users WHERE email = ?", [email], async (err, result) => {
     if (err) return res.status(500).json({ message: "DB error" });
     if (result.length > 0)
       return res.status(400).json({ message: "User already exists" });
 
-    const insertUser = "INSERT INTO users (name, email, password) VALUES (?, ?, ?)";
-    connection.query(insertUser, [name, email, password], (err) => {
-      if (err) return res.status(500).json({ message: "Error creating user" });
-      res.json({ message: "Signup successful" });
-    });
+    try {
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const insertUser = "INSERT INTO users (name, email, password) VALUES (?, ?, ?)";
+      connection.query(insertUser, [name, email, hashedPassword], (err) => {
+        if (err) return res.status(500).json({ message: "Error creating user" });
+        res.json({ message: "Signup successful" });
+      });
+    } catch (err) {
+      res.status(500).json({ message: "Password hashing failed" });
+    }
   });
 });
 
@@ -46,14 +53,26 @@ app.post("/api/signup", (req, res) => {
 app.post("/api/login", (req, res) => {
   const { email, password } = req.body;
 
-  const query = "SELECT * FROM users WHERE email = ? AND password = ?";
-  connection.query(query, [email, password], (err, result) => {
+  connection.query("SELECT * FROM users WHERE email = ?", [email], async (err, results) => {
     if (err) return res.status(500).json({ message: "DB error" });
-    if (result.length === 0)
-      return res.status(400).json({ message: "Invalid credentials" });
+    if (results.length === 0) return res.status(400).json({ message: "User not found" });
 
-    const user = result[0];
-    res.json({ message: "Login successful", user });
+    const user = results[0];
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
+
+    const token = jwt.sign(
+      { id: user.id, name: user.name, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    res.json({
+      message: "Login successful",
+      token,
+      user: { id: user.id, name: user.name, email: user.email },
+    });
   });
 });
 
