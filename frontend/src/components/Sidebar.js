@@ -22,7 +22,7 @@ function Sidebar() {
   const menuItems = [
     {
       icon: '•', label: 'Master Data', dropdown: [
-        { label: 'Product Master', to: '/master/product' },
+        { label: 'Product Master', to: '/master' },
         { label: 'Category Hierarchy', to: '/master/category' },
         { label: 'Brand & Company', to: '/master/brand' },
         { label: 'Store Master', to: '/master/store' },
