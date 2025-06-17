@@ -3,11 +3,22 @@ import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { toast, ToastContainer, Zoom } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
+import logo from '../assests/logo.png'
 function Login() {
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({ email: "", password: "", module: "" });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const moduleOptions = [
+    "Master Data",
+    "Order Management",
+    "Logistics Execution",
+    "Purchase Management",
+    "Inventory Management",
+    "Stock Transfer",
+    "Finance Management",
+    "Assets Management"
+  ];
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -20,10 +31,10 @@ function Login() {
     try {
       const res = await axios.post("http://localhost:5000/api/login", form);
 
-
-      // Store token and user name
+      // Store token, user name, and selected module
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("userName", res.data.user.name);
+      localStorage.setItem("selectedModule", form.module);  // <-- Store module
 
       toast.success(`Welcome ${res.data.user.name}!`, {
         position: "top-center",
@@ -61,23 +72,18 @@ function Login() {
         maxWidth: "400px",
         textAlign: "center"
       }}>
-        <div style={{
-          backgroundColor: "#000",
-          width: "50px",
-          height: "50px",
-          borderRadius: "8px",
-          margin: "0 auto 1.5rem",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#fff",
-          fontWeight: "bold",
-          fontSize: "1.3rem"
-        }}>
-          E
-        </div>
+       <div style={{
+  width: "200px",
+  height: "70px",
+ 
+  margin: "0 auto 1.5rem",
+  overflow: "hidden"
+}}>
+  <img src={logo} alt="ERP Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+</div>
 
-        <h4 style={{ marginBottom: "2rem", fontWeight: "600" }}>Login to ERP</h4>
+
+        <h4 style={{ marginBottom: "2rem", fontWeight: "600" }}>Enterprise Resource Planning</h4>
 
         <form onSubmit={handleSubmit}>
           <input
@@ -99,6 +105,20 @@ function Login() {
             required
             style={{ borderRadius: "10px", fontSize: "0.95rem" }}
           />
+
+          <select
+            name="module"
+            value={form.module}
+            onChange={handleChange}
+            className="form-control mb-3"
+            required
+            style={{ borderRadius: "10px", fontSize: "0.95rem" }}
+          >
+            <option value="">Select Module</option>
+            {moduleOptions.map((mod, idx) => (
+              <option key={idx} value={mod}>{mod}</option>
+            ))}
+          </select>
 
           <div style={{ fontSize: "0.9rem", textAlign: "right" }}>
             <Link to="#" style={{ textDecoration: "none", color: "#555" }}>Forgot Password?</Link>

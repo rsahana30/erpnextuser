@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { toast, ToastContainer, Zoom } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
+import logo from '../assests/logo.png'
 function Signup() {
   const navigate = useNavigate();
 
@@ -104,21 +104,15 @@ function Signup() {
         maxWidth: "420px",
         textAlign: "center"
       }}>
-        <div style={{
-          backgroundColor: "#000",
-          width: "50px",
-          height: "50px",
-          borderRadius: "8px",
-          margin: "0 auto 1.5rem",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#fff",
-          fontWeight: "bold",
-          fontSize: "1.3rem"
-        }}>
-          E
-        </div>
+       <div style={{
+         width: "200px",
+         height: "70px",
+        
+         margin: "0 auto 1.5rem",
+         overflow: "hidden"
+       }}>
+         <img src={logo} alt="ERP Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+       </div>
 
         <h4 className="mb-4 fw-semibold">Create an Account</h4>
 

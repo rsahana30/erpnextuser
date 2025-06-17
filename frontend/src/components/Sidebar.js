@@ -5,8 +5,10 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 
 function Sidebar() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [modulesOpen, setModulesOpen] = useState(true); // Controls Modules main dropdown
+  const [modulesOpen, setModulesOpen] = useState(true);
   const [openDropdowns, setOpenDropdowns] = useState({});
+
+  const selectedModule = localStorage.getItem("selectedModule");
 
   const toggleSidebar = () => setSidebarCollapsed(!sidebarCollapsed);
 
@@ -32,7 +34,29 @@ function Sidebar() {
       ]
     },
     {
+      icon: '•', label: 'Order Management', dropdown: [
+        { label: 'Lead', to: '/order/lead' },
+        { label: 'Quotation', to: '/order/quotation' },
+        { label: 'Order', to: '/order/order' },
+        { label: 'Billing', to: '/order/billing' },
+        { label: 'Delivery Tracking', to: '/order/delivery' },
+      ]
+    },
+    {
+      icon: '•', label: 'Logistics Execution', dropdown: [
+        { label: 'Inbound Delivery', to: '/logistics/inbound' },
+        { label: 'Goods Receipt', to: '/logistics/receipt' },
+        { label: 'Put Away', to: '/logistics/putaway' },
+        { label: 'Outbound Delivery', to: '/logistics/outbound' },
+        { label: 'Picking', to: '/logistics/picking' },
+        { label: 'Goods Issue', to: '/logistics/issue' },
+      ]
+    },
+    {
       icon: '•', label: 'Purchase', dropdown: [
+        { label: 'Purchase Request', to: '/purchase/request' },
+        { label: 'Purchase Order', to: '/purchase/order' },
+        { label: 'Vendor Billing', to: '/purchase/billing' },
         { label: 'PO Creation', to: '/purchase/po' },
         { label: 'Approval Hierarchy', to: '/purchase/approval' },
         { label: 'GRN & Receipts', to: '/purchase/grn' },
@@ -85,6 +109,12 @@ function Sidebar() {
     }
   ];
 
+  const filteredMenuItems = menuItems.filter(item => item.label === selectedModule);
+
+  if (!selectedModule) {
+    return <div className="p-3">No module selected. Please login.</div>;
+  }
+
   return (
     <div style={{ marginLeft: '12px' }}>
       <div className={`d-flex flex-column ${sidebarCollapsed ? 'collapsed' : ''}`}
@@ -116,7 +146,6 @@ function Sidebar() {
         <div className="pt-5 px-3">
           {!sidebarCollapsed && (
             <div className="mt-3">
-              {/* Main Modules Dropdown */}
               <div
                 className="d-flex align-items-center justify-content-between px-3 py-2"
                 style={{ cursor: 'pointer', backgroundColor: '#f8f9fa' }}
@@ -124,14 +153,14 @@ function Sidebar() {
               >
                 <div className="d-flex align-items-center gap-2">
                   <span style={{ fontSize: '1.5rem' }}></span>
-                  <span>Modules</span>
+                  <span>User Data Management</span>
                 </div>
                 {modulesOpen ? <FaChevronUp /> : <FaChevronDown />}
               </div>
 
               {modulesOpen && (
                 <div>
-                  {menuItems.map((item, index) => (
+                  {filteredMenuItems.map((item, index) => (
                     <div key={index}>
                       <div
                         className="d-flex align-items-center justify-content-between px-3 py-2"

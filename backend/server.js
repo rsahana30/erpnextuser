@@ -28,7 +28,7 @@ connection.connect((err) => {
 
 // Signup
 app.post("/api/signup", async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, selectedModule } = req.body;
 
   connection.query("SELECT * FROM users WHERE email = ?", [email], async (err, result) => {
     if (err) return res.status(500).json({ message: "DB error" });
@@ -38,8 +38,8 @@ app.post("/api/signup", async (req, res) => {
     try {
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      const insertUser = "INSERT INTO users (name, email, password) VALUES (?, ?, ?)";
-      connection.query(insertUser, [name, email, hashedPassword], (err) => {
+      const insertUser = "INSERT INTO users (name, email, password, selected_module) VALUES (?, ?, ?, ?)";
+      connection.query(insertUser, [name, email, hashedPassword, selectedModule], (err) => {
         if (err) return res.status(500).json({ message: "Error creating user" });
         res.json({ message: "Signup successful" });
       });
@@ -71,7 +71,12 @@ app.post("/api/login", (req, res) => {
     res.json({
       message: "Login successful",
       token,
-      user: { id: user.id, name: user.name, email: user.email },
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        selectedModule: user.selected_module,
+      },
     });
   });
 });
