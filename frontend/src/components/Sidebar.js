@@ -22,7 +22,7 @@ function Sidebar() {
   const menuItems = [
     {
       icon: '•', label: 'Master Data', dropdown: [
-        { label: 'Product Master', to: '/master' },
+        { label: 'Product Master', to: '/productmaster' },
         { label: 'Category Hierarchy', to: '/master/category' },
         { label: 'Brand & Company', to: '/master/brand' },
         { label: 'Store Master', to: '/master/store' },
@@ -30,7 +30,8 @@ function Sidebar() {
         { label: 'Vendor Product', to: '/master/vendor-product' },
         { label: 'Tax Rules', to: '/master/tax' },
         { label: 'Workflow', to: '/master/workflow' },
-        { label: 'API Sync', to: '/master/api' }
+        { label: 'API Sync', to: '/master/api' },
+         { label: 'Product List', to: '/productlist' }
       ]
     },
     {

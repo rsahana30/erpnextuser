@@ -2,6 +2,7 @@ import React from 'react';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 
+
 function Home() {
   return (
     <div className="d-flex">
@@ -10,6 +11,7 @@ function Home() {
       
        <Navbar/>
        <Sidebar/>
+       
       
         
       </div>
