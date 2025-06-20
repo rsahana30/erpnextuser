@@ -3,7 +3,8 @@ import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { toast, ToastContainer, Zoom } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import logo from '../assests/logo.png'
+import logo from "../assests/logo.png";
+
 function Login() {
   const [form, setForm] = useState({ email: "", password: "", module: "" });
   const [loading, setLoading] = useState(false);
@@ -20,6 +21,17 @@ function Login() {
     "Assets Management"
   ];
 
+  const routeMap = {
+    "Master Data": "/master",
+    "Order Management": "/order",
+    "Logistics Execution": "/logistics",
+    "Purchase Management": "/purchase",
+    "Inventory Management": "/inventory",
+    "Stock Transfer": "/stock",
+    "Finance Management": "/finance",
+    "Assets Management": "/assets"
+  };
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -31,10 +43,9 @@ function Login() {
     try {
       const res = await axios.post("http://localhost:5000/api/login", form);
 
-      // Store token, user name, and selected module
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("userName", res.data.user.name);
-      localStorage.setItem("selectedModule", form.module);  // <-- Store module
+      localStorage.setItem("selectedModule", form.module);
 
       toast.success(`Welcome ${res.data.user.name}!`, {
         position: "top-center",
@@ -42,7 +53,9 @@ function Login() {
         transition: Zoom,
       });
 
-      setTimeout(() => navigate("/home"), 2500);
+      const selectedRoute = routeMap[form.module] || "/home";
+
+      setTimeout(() => navigate(selectedRoute), 2500);
     } catch (err) {
       toast.error("Invalid credentials. Try again!", {
         position: "top-center",
@@ -72,16 +85,14 @@ function Login() {
         maxWidth: "400px",
         textAlign: "center"
       }}>
-       <div style={{
-  width: "200px",
-  height: "70px",
- 
-  margin: "0 auto 1.5rem",
-  overflow: "hidden"
-}}>
-  <img src={logo} alt="ERP Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-</div>
-
+        <div style={{
+          width: "200px",
+          height: "70px",
+          margin: "0 auto 1.5rem",
+          overflow: "hidden"
+        }}>
+          <img src={logo} alt="ERP Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        </div>
 
         <h4 style={{ marginBottom: "2rem", fontWeight: "600" }}>Enterprise Resource Planning</h4>
 

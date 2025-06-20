@@ -148,3 +148,54 @@ app.get("/api/products", (req, res) => {
     res.json(results);
   });
 });
+
+// GET /api/products
+app.get("/api/productconfig", (req, res) => {
+  const query = `
+    SELECT productCode, product_name AS product, productGroup, brand, category 
+    FROM ProductConfig
+  `;
+  connection.query(query, (err, results) => {
+    if (err) {
+      console.error('SQL Error:', err.message);  // Add this for visibility
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(results);
+  });
+});
+
+app.post('/api/saveProductDetails', (req, res) => {
+  const {
+    productCode, product, productGroup, brand, category,
+    description, uom, unitPrice, hsnCode, profitCentre, controller
+  } = req.body;
+
+  console.log('Backend received:', req.body);
+
+  const sql = `
+    INSERT INTO ProductDetails
+    (productCode, product, productGroup, brand, category,
+     description, uom, unitPrice, hsnCode, profitCentre, controller)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+  const values = [productCode, product, productGroup, brand, category,
+                  description, uom, unitPrice, hsnCode, profitCentre, controller];
+
+  connection.query(sql, values, (err, result) => {
+    if (err) {
+      console.error('DB insert error:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    console.log('DB insert success:', result.insertId);
+    res.json({ message: 'Saved successfully' });
+  });
+});
+
+
+app.get("/api/getProductDetails", (req, res) => {
+  connection.query("SELECT * FROM productdetails", (err, result) => {
+    if (err) return res.status(500).json(err);
+    res.json(result);
+  });
+});
+
