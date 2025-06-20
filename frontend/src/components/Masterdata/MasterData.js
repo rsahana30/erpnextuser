@@ -1,7 +1,7 @@
 import React from 'react';
 import Navbar from '../Navbar';
 import Sidebar from '../Sidebar';
-import ProductList from './ProductList';
+
 import Product from './Product';
 
 function MasterData() {

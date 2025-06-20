@@ -33,6 +33,7 @@ const ViewProduct = () => {
                   <p><strong>Description:</strong> {p.description}</p>
                   <p><strong>UOM:</strong> {p.uom}</p>
                   <p><strong>Unit Price:</strong> ₹{p.unitPrice}</p>
+                  <p><strong>Product Type</strong> {p.productType}</p>
                   <p><strong>Group:</strong> {p.productGroup}</p>
                   <p><strong>Brand:</strong> {p.brand}</p>
                   <p><strong>Category:</strong> {p.category}</p>

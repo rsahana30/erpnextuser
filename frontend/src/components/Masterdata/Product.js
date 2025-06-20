@@ -13,6 +13,7 @@ const Product = () => {
     productGroup: "",
     brand: "",
     category: "",
+    productType: "",
   });
 
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -23,6 +24,7 @@ const Product = () => {
     hsnCode: "",
     profitCentre: "",
     controller: "",
+    productType: "",
   });
 
   const [dropdownOptions, setDropdownOptions] = useState({
@@ -31,6 +33,7 @@ const Product = () => {
     productGroups: [],
     brands: [],
     categories: [],
+    productTypes: ["Raw material", "Semi finished", "Finished", "Traded"],
   });
 
   const navigate = useNavigate();
@@ -51,6 +54,7 @@ const Product = () => {
           productGroups: extractUnique("productGroup"),
           brands: extractUnique("brand"),
           categories: extractUnique("category"),
+          productTypes: ["Raw material", "Semi finished", "Finished", "Traded"],
         };
 
         setProducts(res.data);
@@ -65,6 +69,7 @@ const Product = () => {
     productGroup: "productGroups",
     brand: "brands",
     category: "categories",
+    productType: "productTypes",
   };
 
   const handleFilterChange = (e) => {
@@ -81,7 +86,8 @@ const Product = () => {
       (!filters.product || p.product === filters.product) &&
       (!filters.productGroup || p.productGroup === filters.productGroup) &&
       (!filters.brand || p.brand === filters.brand) &&
-      (!filters.category || p.category === filters.category)
+      (!filters.category || p.category === filters.category) &&
+      (!filters.productType || p.productType === filters.productType)
     );
   });
 
@@ -92,7 +98,8 @@ const Product = () => {
         (!filters.product || p.product === filters.product) &&
         (!filters.productGroup || p.productGroup === filters.productGroup) &&
         (!filters.brand || p.brand === filters.brand) &&
-        (!filters.category || p.category === filters.category)
+        (!filters.category || p.category === filters.category) &&
+        (!filters.productType || p.productType === filters.productType)
     );
     if (selected) {
       setSelectedProduct(selected);
@@ -103,6 +110,7 @@ const Product = () => {
         hsnCode: "",
         profitCentre: "",
         controller: "",
+        productType: "",
       });
       new Modal(document.getElementById("createProductModal")).show();
     }
@@ -117,17 +125,6 @@ const Product = () => {
         alert("Product detail created!");
         document.getElementById("closeModalBtn").click();
       });
-  };
-
-  const handleView = (p) => {
-    const matchedProducts = products.filter(
-      (prod) =>
-        prod.product === p.product &&
-        prod.productGroup === p.productGroup &&
-        prod.brand === p.brand &&
-        prod.category === p.category
-    );
-    navigate("/view-product", { state: { matchedProducts } });
   };
 
   return (
@@ -289,6 +286,22 @@ const Product = () => {
                       onChange={handleInputChange}
                       required
                     />
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label">Product Type</label>
+                    <select
+                      name="productType"
+                      className="form-select"
+                      value={formInputs.productType}
+                      onChange={handleInputChange}
+                      required
+                    >
+                      <option value="">Select</option>
+                      <option value="Raw material">Raw material</option>
+                      <option value="Semi finished">Semi finished</option>
+                      <option value="Finished">Finished</option>
+                      <option value="Traded">Traded</option>
+                    </select>
                   </div>
                 </div>
               )}

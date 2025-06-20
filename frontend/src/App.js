@@ -4,9 +4,6 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import Home from './components/Home';
-
-import ProductMaster from './components/Masterdata/ProductMaster';
-import ProductList from './components/Masterdata/ProductList';
 import MasterData from './components/Masterdata/MasterData';
 import ViewProduct from './components/Masterdata/ViewProduct';
 
@@ -26,8 +23,6 @@ function App() {
         <Route path="/assets" element={'/'} />
         <Route path="/" element={<Signup />} />
         <Route path="/home" element={<Home />} />
-    <Route path="/productmaster" element={<ProductMaster/>} />
-    <Route path="/productlist" element={<ProductList/>} />
      <Route path="/view-product" element={<ViewProduct/>} />
       </Routes>
     </BrowserRouter>
