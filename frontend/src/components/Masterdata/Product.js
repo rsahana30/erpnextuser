@@ -9,12 +9,12 @@ const Product = () => {
   const [products, setProducts] = useState([]);
   const [filters, setFilters] = useState({
     productCode: "",
-    product: "",
+    productType: "",
     productGroup: "",
     brand: "",
     category: "",
-    productType: "",
   });
+  
 
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [formInputs, setFormInputs] = useState({
@@ -29,7 +29,6 @@ const Product = () => {
 
   const [dropdownOptions, setDropdownOptions] = useState({
     productCodes: [],
-    products: [],
     productGroups: [],
     brands: [],
     categories: [],
@@ -50,7 +49,6 @@ const Product = () => {
 
         const dropdowns = {
           productCodes: extractUnique("productCode"),
-          products: extractUnique("product"),
           productGroups: extractUnique("productGroup"),
           brands: extractUnique("brand"),
           categories: extractUnique("category"),
@@ -65,11 +63,10 @@ const Product = () => {
 
   const dropdownMap = {
     productCode: "productCodes",
-    product: "products",
+    productType: "productTypes",
     productGroup: "productGroups",
     brand: "brands",
     category: "categories",
-    productType: "productTypes",
   };
 
   const handleFilterChange = (e) => {
@@ -83,11 +80,10 @@ const Product = () => {
   const filteredProducts = products.filter((p) => {
     return (
       (!filters.productCode || p.productCode === filters.productCode) &&
-      (!filters.product || p.product === filters.product) &&
+      (!filters.productType || p.productType === filters.productType) &&
       (!filters.productGroup || p.productGroup === filters.productGroup) &&
       (!filters.brand || p.brand === filters.brand) &&
-      (!filters.category || p.category === filters.category) &&
-      (!filters.productType || p.productType === filters.productType)
+      (!filters.category || p.category === filters.category)
     );
   });
 
@@ -95,11 +91,10 @@ const Product = () => {
     const selected = products.find(
       (p) =>
         (!filters.productCode || p.productCode === filters.productCode) &&
-        (!filters.product || p.product === filters.product) &&
+        (!filters.productType || p.productType === filters.productType) &&
         (!filters.productGroup || p.productGroup === filters.productGroup) &&
         (!filters.brand || p.brand === filters.brand) &&
-        (!filters.category || p.category === filters.category) &&
-        (!filters.productType || p.productType === filters.productType)
+        (!filters.category || p.category === filters.category)
     );
     if (selected) {
       setSelectedProduct(selected);
@@ -127,10 +122,14 @@ const Product = () => {
       });
   };
 
+  const formatLabel = (key) =>
+    key
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+
   return (
     <div className="container mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h4 className="mb-0">Product Filters</h4>
+      <div className="d-flex justify-content-end align-items-center mb-3">
         <button className="btn btn-success" onClick={handleCreateClick}>
           Create Product
         </button>
@@ -139,9 +138,7 @@ const Product = () => {
       <div className="d-flex flex-wrap gap-3 mb-4">
         {Object.keys(filters).map((field) => (
           <div key={field}>
-            <label className="form-label">
-              {field.charAt(0).toUpperCase() + field.slice(1)}
-            </label>
+            <label className="form-label">{formatLabel(field)}</label>
             <select
               className="form-select"
               name={field}
@@ -163,7 +160,6 @@ const Product = () => {
         <thead className="table-light">
           <tr>
             <th>Product Code</th>
-            <th>Product</th>
             <th>Product Group</th>
             <th>Brand</th>
             <th>Category</th>
@@ -174,7 +170,6 @@ const Product = () => {
           {filteredProducts.map((p, idx) => (
             <tr key={idx}>
               <td>{p.productCode}</td>
-              <td>{p.product}</td>
               <td>{p.productGroup}</td>
               <td>{p.brand}</td>
               <td>{p.category}</td>
@@ -205,7 +200,7 @@ const Product = () => {
         <div className="modal-dialog modal-lg">
           <form className="modal-content" onSubmit={handleSubmit}>
             <div className="modal-header">
-              <h5 className="modal-title">Create Product Details</h5>
+              <h5 className="modal-title">Create Product Master</h5>
               <button
                 type="button"
                 id="closeModalBtn"
@@ -216,13 +211,16 @@ const Product = () => {
             <div className="modal-body">
               {selectedProduct && (
                 <div className="row g-3 mb-3">
-                  {Object.entries(selectedProduct).map(([key, value]) => (
-                    <div className="col-md-4" key={key}>
-                      <label className="form-label">{key}</label>
-                      <input className="form-control" value={value} disabled />
-                    </div>
-                  ))}
-                  <div className="col-md-4">
+                  {/* First Line */}
+                  <div className="col-md-3">
+                    <label className="form-label">Product Code</label>
+                    <input
+                      className="form-control"
+                      value={selectedProduct.productCode}
+                      disabled
+                    />
+                  </div>
+                  <div className="col-md-3">
                     <label className="form-label">Description</label>
                     <input
                       name="description"
@@ -232,7 +230,23 @@ const Product = () => {
                       required
                     />
                   </div>
-                  <div className="col-md-2">
+                  <div className="col-md-3">
+                    <label className="form-label">Product Type</label>
+                    <select
+                      name="productType"
+                      className="form-select"
+                      value={formInputs.productType}
+                      onChange={handleInputChange}
+                      required
+                    >
+                      <option value="">Select</option>
+                      <option value="Raw material">Raw material</option>
+                      <option value="Semi finished">Semi finished</option>
+                      <option value="Finished">Finished</option>
+                      <option value="Traded">Traded</option>
+                    </select>
+                  </div>
+                  <div className="col-md-3">
                     <label className="form-label">UOM</label>
                     <select
                       name="uom"
@@ -242,22 +256,40 @@ const Product = () => {
                       required
                     >
                       <option value="">Select</option>
-                      <option value="INR">INR</option>
-                      <option value="USD">USD</option>
+                      <option value="PCS">PCS</option>
+                      <option value="KG">KG</option>
+                      <option value="L">L</option>
                     </select>
                   </div>
-                  <div className="col-md-2">
-                    <label className="form-label">Unit Price</label>
+
+                  {/* Second Line */}
+                  <div className="col-md-4">
+                    <label className="form-label">Product Group</label>
                     <input
-                      name="unitPrice"
-                      type="number"
                       className="form-control"
-                      value={formInputs.unitPrice}
-                      onChange={handleInputChange}
-                      required
+                      value={selectedProduct.productGroup}
+                      disabled
                     />
                   </div>
-                  <div className="col-md-2">
+                  <div className="col-md-4">
+                    <label className="form-label">Brand</label>
+                    <input
+                      className="form-control"
+                      value={selectedProduct.brand}
+                      disabled
+                    />
+                  </div>
+                  <div className="col-md-4">
+                    <label className="form-label">Category</label>
+                    <input
+                      className="form-control"
+                      value={selectedProduct.category}
+                      disabled
+                    />
+                  </div>
+
+                  {/* Third Line */}
+                  <div className="col-md-3">
                     <label className="form-label">HSN Code</label>
                     <input
                       name="hsnCode"
@@ -287,20 +319,29 @@ const Product = () => {
                       required
                     />
                   </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Product Type</label>
+                  <div className="col-md-2">
+                    <label className="form-label">Unit Price</label>
+                    <input
+                      name="unitPrice"
+                      type="number"
+                      className="form-control"
+                      value={formInputs.unitPrice}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="col-md-1">
+                    <label className="form-label">Currency</label>
                     <select
-                      name="productType"
+                      name="currency"
                       className="form-select"
-                      value={formInputs.productType}
+                      value={formInputs.currency}
                       onChange={handleInputChange}
                       required
                     >
-                      <option value="">Select</option>
-                      <option value="Raw material">Raw material</option>
-                      <option value="Semi finished">Semi finished</option>
-                      <option value="Finished">Finished</option>
-                      <option value="Traded">Traded</option>
+                      <option value="">--</option>
+                      <option value="INR">₹</option>
+                      <option value="USD">$</option>
                     </select>
                   </div>
                 </div>

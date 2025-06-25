@@ -6,6 +6,7 @@ import Signup from './components/Signup';
 import Home from './components/Home';
 import MasterData from './components/Masterdata/MasterData';
 import ViewProduct from './components/Masterdata/ViewProduct';
+import Purchase from './components/Purchase/Purchase';
 
 
 function App() {
@@ -16,7 +17,7 @@ function App() {
         <Route path="/master" element={<MasterData/>} />
         <Route path="/order" element={'/'} />
         <Route path="/logistics" element={'/'} />
-        <Route path="/purchase" element={'/'} />
+        <Route path="/purchase" element={<Purchase/>} />
         <Route path="/inventory" element={'/'} />
         <Route path="/stock" element={'/'} />
         <Route path="/finance" element={'/'} />

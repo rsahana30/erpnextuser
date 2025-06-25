@@ -1,8 +1,7 @@
 import React from 'react';
 import Navbar from '../Navbar';
-import Sidebar from '../Sidebar';
-
 import Product from './Product';
+import MasterDataSidebar from './MasterDataSidebar'; // <-- use the module-specific sidebar
 
 function MasterData() {
   return (
@@ -10,46 +9,46 @@ function MasterData() {
       {/* Fixed Navbar */}
       <div
         style={{
-          position: "fixed",
+          position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
-          height: "70px",
+          height: '70px',
           zIndex: 1000,
-          backgroundColor: "#fff"
+          backgroundColor: '#fff',
         }}
       >
         <Navbar />
       </div>
 
-      {/* Fixed Sidebar */}
+      {/* Master Data Sidebar */}
       <div
         style={{
-          position: "fixed",
-          top: "70px",
+          position: 'fixed',
+          top: '70px',
           left: 0,
           bottom: 0,
-          width: "250px",
-          backgroundColor: "#fff",
-          borderRight: "1px solid #ddd"
+          width: '250px',
+          backgroundColor: '#fff',
+         
+          marginLeft:'15px'
         }}
       >
-        <Sidebar />
+        <MasterDataSidebar />
       </div>
 
-      {/* Scrollable main content */}
+      {/* Scrollable Content */}
       <div
         style={{
-          marginTop: "70px",
-          marginLeft: "270px",
-          height: "calc(100vh - 70px)",
-          overflowY: "auto",
-          padding: "1rem",
-          backgroundColor: "#f9f9f9"
+          marginTop: '70px',
+          marginLeft: '270px',
+          height: 'calc(100vh - 70px)',
+          overflowY: 'auto',
+          padding: '1rem',
+          backgroundColor: '#f9f9f9',
         }}
       >
-        <Product/>
-        
+        <Product />
       </div>
     </div>
   );

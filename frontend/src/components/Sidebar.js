@@ -31,7 +31,7 @@ function Sidebar() {
         { label: 'Tax Rules', to: '/master/tax' },
         { label: 'Workflow', to: '/master/workflow' },
         { label: 'API Sync', to: '/master/api' },
-         { label: 'Product List', to: '/productlist' }
+        { label: 'Product List', to: '/productlist' }
       ]
     },
     {
@@ -110,10 +110,13 @@ function Sidebar() {
     }
   ];
 
-  const filteredMenuItems = menuItems.filter(item => item.label === selectedModule);
+  // Case-insensitive match
+  const filteredMenuItems = menuItems.filter(
+    item => item.label.toLowerCase().trim() === selectedModule?.toLowerCase().trim()
+  );
 
-  if (!selectedModule) {
-    return <div className="p-3">No module selected. Please login.</div>;
+  if (!selectedModule || filteredMenuItems.length === 0) {
+    return <div className="p-3">No valid module selected. Please log in and select a module.</div>;
   }
 
   return (
@@ -153,7 +156,6 @@ function Sidebar() {
                 onClick={() => setModulesOpen(!modulesOpen)}
               >
                 <div className="d-flex align-items-center gap-2">
-                  <span style={{ fontSize: '1.5rem' }}></span>
                   <span>User Data Management</span>
                 </div>
                 {modulesOpen ? <FaChevronUp /> : <FaChevronDown />}
@@ -169,7 +171,7 @@ function Sidebar() {
                         onClick={() => handleDropdownToggle(item.label)}
                       >
                         <div className="d-flex align-items-center gap-2">
-                          <span style={{ fontSize: '1rem' }}>{item.icon}</span>
+                          <span>{item.icon}</span>
                           <span>{item.label}</span>
                         </div>
                         {openDropdowns[item.label] ? <FaChevronUp /> : <FaChevronDown />}

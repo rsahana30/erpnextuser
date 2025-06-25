@@ -2,21 +2,21 @@ const express = require("express");
 const router = express.Router();
 const connection = require("../db");
 
-// Save new product
+// Save new product (basic)
 router.post("/products", (req, res) => {
   const {
-    productCode, description, uom, unitPrice, productGroup,
-    brand, category, hsnCode, profitCentre, controller,
+    productCode, productType, description, uom, unitPrice,
+    productGroup, brand, category, hsnCode, profitCentre, controller,
   } = req.body;
 
   const insertQuery = `
     INSERT INTO products 
-    (productCode, description, uom, unitPrice, productGroup, brand, category, hsnCode, profitCentre, controller)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (productCode, productType, description, uom, unitPrice, productGroup, brand, category, hsnCode, profitCentre, controller)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   connection.query(insertQuery,
-    [productCode, description, uom, unitPrice, productGroup, brand, category, hsnCode, profitCentre, controller],
+    [productCode, productType, description, uom, unitPrice, productGroup, brand, category, hsnCode, profitCentre, controller],
     (err) => {
       if (err) {
         console.error("❌ Error saving product:", err);
@@ -54,10 +54,10 @@ router.get("/config/:type", (req, res) => {
   });
 });
 
-// Get product configuration
+// Get product configuration (filtered fields)
 router.get("/productconfig", (req, res) => {
   const query = `
-    SELECT productCode, product_name AS product, productGroup, brand, category 
+    SELECT productCode, productType, productGroup, brand, category 
     FROM ProductConfig
   `;
   connection.query(query, (err, results) => {
@@ -69,22 +69,22 @@ router.get("/productconfig", (req, res) => {
   });
 });
 
-// Save product details
+// Save product detail
 router.post("/saveProductDetails", (req, res) => {
   const {
-    productCode, product, productGroup, brand, category,
+    productCode, productType, productGroup, brand, category,
     description, uom, unitPrice, hsnCode, profitCentre, controller
   } = req.body;
 
   const sql = `
     INSERT INTO ProductDetails
-    (productCode, product, productGroup, brand, category,
+    (productCode, productType, productGroup, brand, category,
      description, uom, unitPrice, hsnCode, profitCentre, controller)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   connection.query(sql, [
-    productCode, product, productGroup, brand, category,
+    productCode, productType, productGroup, brand, category,
     description, uom, unitPrice, hsnCode, profitCentre, controller
   ], (err, result) => {
     if (err) {
@@ -102,5 +102,38 @@ router.get("/getProductDetails", (req, res) => {
     res.json(result);
   });
 });
+
+// Fetch HSN codes
+router.get("/api/hsncodes", (req, res) => {
+  connection.query("SELECT code FROM hsn_codes", (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(result);
+  });
+});
+
+// Profit Centres
+router.get("/api/profitcentres", (req, res) => {
+  connection.query("SELECT name FROM profit_centres", (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(result);
+  });
+});
+
+// Controllers
+router.get("/api/controllers", (req, res) => {
+  connection.query("SELECT name FROM controllers", (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(result);
+  });
+});
+
+// Currencies
+router.get("/api/currencies", (req, res) => {
+  connection.query("SELECT code FROM currencies", (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(result);
+  });
+});
+
 
 module.exports = router;
