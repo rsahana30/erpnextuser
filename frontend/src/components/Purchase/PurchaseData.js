@@ -23,6 +23,7 @@ const PurchaseData = () => {
   const [productDetails, setProductDetails] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [selectedProducts, setSelectedProducts] = useState([]); // ✅ NEW
+  const [purchaseCounter, setPurchaseCounter] = useState(1); // can reset daily
 
   useEffect(() => {
     axios.get("http://localhost:5000/api/getProductDetails").then((res) => {
@@ -153,13 +154,14 @@ const PurchaseData = () => {
       </table>
 
       {/* ✅ Modal for Purchase Preview */}
+      {/* ✅ Modal for Purchase Preview */}
       <div
         className="modal fade"
         id="purchaseModal"
         tabIndex="-1"
         aria-hidden="true"
       >
-        <div className="modal-dialog modal-lg">
+        <div className="modal-dialog modal-xl">
           <div className="modal-content">
             <div className="modal-header">
               <h5 className="modal-title">Selected Products</h5>
@@ -178,10 +180,11 @@ const PurchaseData = () => {
                     <tr>
                       <th>Product Code</th>
                       <th>Description</th>
-                      <th>Type</th>
                       <th>UOM</th>
                       <th>Unit Price</th>
                       <th>Currency</th>
+                      <th>Quantity</th>
+                      <th>Total (₹)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -189,22 +192,68 @@ const PurchaseData = () => {
                       <tr key={idx}>
                         <td>{prod.productCode}</td>
                         <td>{prod.description}</td>
-                        <td>{prod.productType}</td>
                         <td>{prod.uom}</td>
                         <td>{prod.unitPrice}</td>
                         <td>{prod.currency}</td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            className="form-control"
+                            value={prod.quantity || ""}
+                            onChange={(e) => {
+                              const value = parseFloat(e.target.value) || 0;
+                              const updated = [...selectedProducts];
+                              updated[idx] = {
+                                ...prod,
+                                quantity: value,
+                                total: value * parseFloat(prod.unitPrice),
+                              };
+                              setSelectedProducts(updated);
+                            }}
+                          />
+                        </td>
+                        <td>₹ {prod.total ? prod.total.toFixed(2) : "0.00"}</td>
                       </tr>
                     ))}
+                    <tr className="table-light fw-bold">
+                      <td colSpan="6" className="text-end">
+                        Grand Total:
+                      </td>
+                      <td>
+                        ₹{" "}
+                        {selectedProducts
+                          .reduce((sum, p) => sum + (p.total || 0), 0)
+                          .toFixed(2)}
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               )}
             </div>
             <div className="modal-footer">
-              <button
-                className="btn btn-secondary"
-                data-bs-dismiss="modal"
-              >
+              <button className="btn btn-secondary" data-bs-dismiss="modal">
                 Close
+              </button>
+              <button
+                className="btn btn-success"
+                onClick={() => {
+                  const today = new Date();
+                  const year = today.getFullYear();
+                  const month = String(today.getMonth() + 1).padStart(2, "0");
+                  const day = String(today.getDate()).padStart(2, "0");
+                  const counter = String(purchaseCounter).padStart(4, "0");
+
+                  const referenceId = `PR${year}${month}${day}${counter}`;
+                  alert(`Purchase Confirmed!\nReference ID: ${referenceId}`);
+
+                  setPurchaseCounter((prev) => prev + 1); // Increment for next order
+
+                  // You can optionally clear selected products here:
+                  setSelectedProducts([]);
+                }}
+              >
+                Confirm Purchase
               </button>
             </div>
           </div>
