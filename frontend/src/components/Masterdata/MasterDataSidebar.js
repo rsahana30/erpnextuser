@@ -7,11 +7,12 @@ function MasterDataSidebar() {
   const [open, setOpen] = useState(true);
 
   const menu = [
-    { label: 'Product Master', to: '/productmaster' },
+    { label: 'Product Master', to: '/master' },
     { label: 'Category Hierarchy', to: '/master/category' },
     { label: 'Brand & Company', to: '/master/brand' },
     { label: 'Store Master', to: '/master/store' },
-    { label: 'Vendor Master', to: '/master/vendor' },
+    { label: 'Location Master', to: '/location' },
+    { label: 'Vendor Master', to: '/vendor' },
     { label: 'Vendor Product', to: '/master/vendor-product' },
     { label: 'Tax Rules', to: '/master/tax' },
     { label: 'Workflow', to: '/master/workflow' },

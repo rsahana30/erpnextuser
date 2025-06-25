@@ -236,25 +236,133 @@ const PurchaseData = () => {
                 Close
               </button>
               <button
-                className="btn btn-success"
+                className="btn btn-primary"
                 onClick={() => {
-                  const today = new Date();
-                  const year = today.getFullYear();
-                  const month = String(today.getMonth() + 1).padStart(2, "0");
-                  const day = String(today.getDate()).padStart(2, "0");
-                  const counter = String(purchaseCounter).padStart(4, "0");
-
-                  const referenceId = `PR${year}${month}${day}${counter}`;
-                  alert(`Purchase Confirmed!\nReference ID: ${referenceId}`);
-
-                  setPurchaseCounter((prev) => prev + 1); // Increment for next order
-
-                  // You can optionally clear selected products here:
-                  setSelectedProducts([]);
+                  const vendorModal = new Modal(
+                    document.getElementById("vendorLocationModal")
+                  );
+                  vendorModal.show();
                 }}
               >
-                Confirm Purchase
+                Next
               </button>
+            </div>
+            <div
+              className="modal fade"
+              id="vendorLocationModal"
+              tabIndex="-1"
+              aria-hidden="true"
+            >
+              <div className="modal-dialog modal-md">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h5 className="modal-title">Confirm Vendor & Location</h5>
+                    <button
+                      type="button"
+                      className="btn-close"
+                      data-bs-dismiss="modal"
+                    ></button>
+                  </div>
+                  <div className="modal-body">
+                    {(() => {
+                      const uniqueVendors = [
+                        ...new Set(selectedProducts.map((p) => p.vendor)),
+                      ];
+                      const uniqueLocations = [
+                        ...new Set(selectedProducts.map((p) => p.location)),
+                      ];
+
+                      if (
+                        uniqueVendors.length > 1 ||
+                        uniqueLocations.length > 1
+                      ) {
+                        return (
+                          <div className="alert alert-warning">
+                            Products have different vendors or locations. Please
+                            select consistent products.
+                          </div>
+                        );
+                      }
+
+                      const vendor = uniqueVendors[0] || "N/A";
+                      const location = uniqueLocations[0] || "N/A";
+
+                      return (
+                        <>
+                          <p>
+                            <strong>Vendor:</strong> {vendor}
+                          </p>
+                          <p>
+                            <strong>Location:</strong> {location}
+                          </p>
+                        </>
+                      );
+                    })()}
+                  </div>
+                  <div className="modal-footer">
+                    <button
+                      className="btn btn-secondary"
+                      data-bs-dismiss="modal"
+                    >
+                      Back
+                    </button>
+                    <button
+                      className="btn btn-success"
+                      onClick={() => {
+                        const uniqueVendors = [
+                          ...new Set(selectedProducts.map((p) => p.vendor)),
+                        ];
+                        const uniqueLocations = [
+                          ...new Set(selectedProducts.map((p) => p.location)),
+                        ];
+
+                        if (
+                          uniqueVendors.length > 1 ||
+                          uniqueLocations.length > 1
+                        ) {
+                          alert(
+                            "Cannot proceed. Products have multiple vendors or locations."
+                          );
+                          return;
+                        }
+
+                        const vendor = uniqueVendors[0];
+                        const location = uniqueLocations[0];
+
+                        const today = new Date();
+                        const year = today.getFullYear();
+                        const month = String(today.getMonth() + 1).padStart(
+                          2,
+                          "0"
+                        );
+                        const day = String(today.getDate()).padStart(2, "0");
+                        const counter = String(purchaseCounter).padStart(
+                          4,
+                          "0"
+                        );
+
+                        const referenceId = `PR${year}${month}${day}${counter}`;
+
+                        alert(
+                          `✅ Purchase Confirmed!\nReference ID: ${referenceId}\nVendor: ${vendor}\nLocation: ${location}`
+                        );
+
+                        setPurchaseCounter((prev) => prev + 1);
+                        setSelectedProducts([]);
+
+                        Modal.getInstance(
+                          document.getElementById("purchaseModal")
+                        )?.hide();
+                        Modal.getInstance(
+                          document.getElementById("vendorLocationModal")
+                        )?.hide();
+                      }}
+                    >
+                      Confirm Purchase
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -7,14 +7,16 @@ import Home from './components/Home';
 import MasterData from './components/Masterdata/MasterData';
 import ViewProduct from './components/Masterdata/ViewProduct';
 import Purchase from './components/Purchase/Purchase';
-
+import Product from './components/Masterdata/Product';
+import Location from './components/Masterdata/Location';
+import Vendor from './components/Masterdata/Vendor';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/master" element={<MasterData/>} />
+       
         <Route path="/order" element={'/'} />
         <Route path="/logistics" element={'/'} />
         <Route path="/purchase" element={<Purchase/>} />
@@ -25,6 +27,16 @@ function App() {
         <Route path="/" element={<Signup />} />
         <Route path="/home" element={<Home />} />
      <Route path="/view-product" element={<ViewProduct/>} />
+
+
+
+     {/* Master data Management */}
+      <Route path="/master" element={<MasterData/>} />
+     <Route path='/location' element={<Location/>}/>
+     <Route path='/vendor' element={<Vendor/>}/>
+
+
+
       </Routes>
     </BrowserRouter>
   );

@@ -54,6 +54,100 @@ router.get("/getProductDetails", (req, res) => {
 
 
 
+// GET all locations
+router.get("/getlocation", (req, res) => {
+  const sql = "SELECT * FROM location";
+  connection.query(sql, (err, results) => {
+    if (err) {
+      console.error("Error fetching locations:", err);
+      return res.status(500).json({ error: "Failed to fetch locations" });
+    }
+    res.json(results);
+  });
+});
+
+// POST save new location
+router.post("/saveLocation", (req, res) => {
+  const {
+    locationCode,
+    locationName,
+    plantType,
+    address,
+    state,
+    pinCode,
+    country,
+    gstcode,
+  } = req.body;
+
+  const sql = `
+    INSERT INTO location
+    (locationCode, locationName, plantType, address, state, pinCode, country, gstcode)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  connection.query(
+    sql,
+    [locationCode, locationName, plantType, address, state, pinCode, country, gstcode],
+    (err, result) => {
+      if (err) {
+        console.error("Error inserting location:", err);
+        return res.status(500).json({ error: "Failed to save location" });
+      }
+      res.status(201).json({ message: "Location saved successfully" });
+    }
+  );
+});
+
+
+
+
+// GET all vendors
+router.get("/getvendor", (req, res) => {
+  connection.query("SELECT * FROM vendor", (err, results) => {
+    if (err) {
+      console.error("Error fetching vendors:", err);
+      return res.status(500).json({ error: "Failed to fetch vendors" });
+    }
+    res.json(results);
+  });
+});
+
+// SAVE new vendor
+router.post("/savevendor", (req, res) => {
+  const {
+    vendorCode,
+    vendorName,
+    vendorType,
+    address,
+    country,
+    state,
+    gstcode,
+  } = req.body;
+
+  const sql = `
+    INSERT INTO vendor
+    (vendorCode, vendorName, vendorType, address, country, state, gstcode)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  connection.query(
+    sql,
+    [vendorCode, vendorName, vendorType, address, country, state, gstcode],
+    (err, result) => {
+      if (err) {
+        console.error("Error inserting vendor:", err);
+        return res.status(500).json({ error: "Failed to save vendor" });
+      }
+      res.status(201).json({ message: "Vendor saved successfully" });
+    }
+  );
+});
+
+
+
+
+
+
 
 
 module.exports = router;

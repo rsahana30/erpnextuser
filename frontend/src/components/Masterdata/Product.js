@@ -8,16 +8,15 @@ import "bootstrap/dist/js/bootstrap.bundle.min.js";
 const Product = () => {
   const [products, setProducts] = useState([]);
   const [filters, setFilters] = useState({
-    productCode: "",
     productType: "",
     productGroup: "",
     brand: "",
     category: "",
   });
-  
 
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [formInputs, setFormInputs] = useState({
+    productCode: "",
     description: "",
     uom: "",
     unitPrice: "",
@@ -25,44 +24,45 @@ const Product = () => {
     profitCentre: "",
     controller: "",
     productType: "",
+    currency: "",
   });
 
   const [dropdownOptions, setDropdownOptions] = useState({
-    productCodes: [],
     productGroups: [],
     brands: [],
     categories: [],
     productTypes: ["Raw material", "Semi finished", "Finished", "Traded"],
+    profitCentres: ["P1001", "P1002", "P1003", "P1004"],
+    controllers: ["John Doe", "Jane Smith", "Carlos Vega", "Priya Iyer"],
+    currencies: ["INR", "USD", "EUR", "JPY"],
   });
 
   const navigate = useNavigate();
 
-  useEffect(() => {
-    axios
-      .get("http://localhost:5000/api/productconfig")
+  const fetchProducts = () => {
+    axios.get("http://localhost:5000/api/productconfig")
       .then((res) => {
+        setProducts(res.data);
+
         const extractUnique = (key) => [
-          ...new Set(
-            res.data.map((p) => p[key]?.toString().trim()).filter((v) => v)
-          ),
+          ...new Set(res.data.map((p) => p[key]?.toString().trim()).filter(Boolean)),
         ];
 
-        const dropdowns = {
-          productCodes: extractUnique("productCode"),
+        setDropdownOptions((prev) => ({
+          ...prev,
           productGroups: extractUnique("productGroup"),
           brands: extractUnique("brand"),
           categories: extractUnique("category"),
-          productTypes: ["Raw material", "Semi finished", "Finished", "Traded"],
-        };
-
-        setProducts(res.data);
-        setDropdownOptions(dropdowns);
+        }));
       })
       .catch((err) => console.error("Error fetching product config:", err));
+  };
+
+  useEffect(() => {
+    fetchProducts();
   }, []);
 
   const dropdownMap = {
-    productCode: "productCodes",
     productType: "productTypes",
     productGroup: "productGroups",
     brand: "brands",
@@ -77,28 +77,25 @@ const Product = () => {
     setFormInputs({ ...formInputs, [e.target.name]: e.target.value });
   };
 
-  const filteredProducts = products.filter((p) => {
-    return (
-      (!filters.productCode || p.productCode === filters.productCode) &&
+  const filteredProducts = products.filter((p) => (
+    (!filters.productType || p.productType === filters.productType) &&
+    (!filters.productGroup || p.productGroup === filters.productGroup) &&
+    (!filters.brand || p.brand === filters.brand) &&
+    (!filters.category || p.category === filters.category)
+  ));
+
+  const handleCreateClick = () => {
+    const selected = products.find((p) => (
       (!filters.productType || p.productType === filters.productType) &&
       (!filters.productGroup || p.productGroup === filters.productGroup) &&
       (!filters.brand || p.brand === filters.brand) &&
       (!filters.category || p.category === filters.category)
-    );
-  });
+    ));
 
-  const handleCreateClick = () => {
-    const selected = products.find(
-      (p) =>
-        (!filters.productCode || p.productCode === filters.productCode) &&
-        (!filters.productType || p.productType === filters.productType) &&
-        (!filters.productGroup || p.productGroup === filters.productGroup) &&
-        (!filters.brand || p.brand === filters.brand) &&
-        (!filters.category || p.category === filters.category)
-    );
     if (selected) {
       setSelectedProduct(selected);
       setFormInputs({
+        productCode: "",
         description: "",
         uom: "",
         unitPrice: "",
@@ -106,6 +103,7 @@ const Product = () => {
         profitCentre: "",
         controller: "",
         productType: "",
+        currency: "",
       });
       new Modal(document.getElementById("createProductModal")).show();
     }
@@ -114,22 +112,20 @@ const Product = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     const finalData = { ...selectedProduct, ...formInputs };
-    axios
-      .post("http://localhost:5000/api/saveProductDetails", finalData)
+    axios.post("http://localhost:5000/api/saveProductDetails", finalData)
       .then(() => {
         alert("Product detail created!");
         document.getElementById("closeModalBtn").click();
+        fetchProducts();
       });
   };
 
   const formatLabel = (key) =>
-    key
-      .replace(/([a-z])([A-Z])/g, "$1 $2")
-      .replace(/\b\w/g, (char) => char.toUpperCase());
+    key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/\b\w/g, (char) => char.toUpperCase());
 
   return (
     <div className="container mt-4">
-      <div className="d-flex justify-content-end align-items-center mb-3">
+      <div className="d-flex justify-content-end mb-3">
         <button className="btn btn-success" onClick={handleCreateClick}>
           Create Product
         </button>
@@ -147,9 +143,7 @@ const Product = () => {
             >
               <option value="">Select</option>
               {dropdownOptions[dropdownMap[field]]?.map((item, idx) => (
-                <option key={idx} value={item}>
-                  {item}
-                </option>
+                <option key={idx} value={item}>{item}</option>
               ))}
             </select>
           </div>
@@ -176,11 +170,7 @@ const Product = () => {
               <td>
                 <button
                   className="btn btn-info btn-sm"
-                  onClick={() =>
-                    navigate("/view-product", {
-                      state: { productCode: p.productCode },
-                    })
-                  }
+                  onClick={() => navigate("/view-product", { state: { productCode: p.productCode } })}
                 >
                   View
                 </button>
@@ -190,174 +180,95 @@ const Product = () => {
         </tbody>
       </table>
 
-      {/* Modal */}
-      <div
-        className="modal fade"
-        id="createProductModal"
-        tabIndex="-1"
-        aria-hidden="true"
-      >
+      <div className="modal fade" id="createProductModal" tabIndex="-1" aria-hidden="true">
         <div className="modal-dialog modal-lg">
           <form className="modal-content" onSubmit={handleSubmit}>
             <div className="modal-header">
               <h5 className="modal-title">Create Product Master</h5>
-              <button
-                type="button"
-                id="closeModalBtn"
-                className="btn-close"
-                data-bs-dismiss="modal"
-              ></button>
+              <button type="button" id="closeModalBtn" className="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div className="modal-body">
               {selectedProduct && (
                 <div className="row g-3 mb-3">
-                  {/* First Line */}
                   <div className="col-md-3">
                     <label className="form-label">Product Code</label>
-                    <input
-                      className="form-control"
-                      value={selectedProduct.productCode}
-                      disabled
-                    />
+                    <input name="productCode" className="form-control" value={formInputs.productCode} onChange={handleInputChange} required />
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Description</label>
-                    <input
-                      name="description"
-                      className="form-control"
-                      value={formInputs.description}
-                      onChange={handleInputChange}
-                      required
-                    />
+                    <input name="description" className="form-control" value={formInputs.description} onChange={handleInputChange} required />
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Product Type</label>
-                    <select
-                      name="productType"
-                      className="form-select"
-                      value={formInputs.productType}
-                      onChange={handleInputChange}
-                      required
-                    >
+                    <select name="productType" className="form-select" value={formInputs.productType} onChange={handleInputChange} required>
                       <option value="">Select</option>
-                      <option value="Raw material">Raw material</option>
-                      <option value="Semi finished">Semi finished</option>
-                      <option value="Finished">Finished</option>
-                      <option value="Traded">Traded</option>
+                      {dropdownOptions.productTypes.map((type, idx) => (
+                        <option key={idx} value={type}>{type}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">UOM</label>
-                    <select
-                      name="uom"
-                      className="form-select"
-                      value={formInputs.uom}
-                      onChange={handleInputChange}
-                      required
-                    >
+                    <select name="uom" className="form-select" value={formInputs.uom} onChange={handleInputChange} required>
                       <option value="">Select</option>
                       <option value="PCS">PCS</option>
                       <option value="KG">KG</option>
                       <option value="L">L</option>
                     </select>
                   </div>
-
-                  {/* Second Line */}
                   <div className="col-md-4">
                     <label className="form-label">Product Group</label>
-                    <input
-                      className="form-control"
-                      value={selectedProduct.productGroup}
-                      disabled
-                    />
+                    <input className="form-control" value={selectedProduct.productGroup} disabled />
                   </div>
                   <div className="col-md-4">
                     <label className="form-label">Brand</label>
-                    <input
-                      className="form-control"
-                      value={selectedProduct.brand}
-                      disabled
-                    />
+                    <input className="form-control" value={selectedProduct.brand} disabled />
                   </div>
                   <div className="col-md-4">
                     <label className="form-label">Category</label>
-                    <input
-                      className="form-control"
-                      value={selectedProduct.category}
-                      disabled
-                    />
+                    <input className="form-control" value={selectedProduct.category} disabled />
                   </div>
-
-                  {/* Third Line */}
                   <div className="col-md-3">
                     <label className="form-label">HSN Code</label>
-                    <input
-                      name="hsnCode"
-                      className="form-control"
-                      value={formInputs.hsnCode}
-                      onChange={handleInputChange}
-                      required
-                    />
+                    <input name="hsnCode" className="form-control" value={formInputs.hsnCode} onChange={handleInputChange} required />
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Profit Centre</label>
-                    <input
-                      name="profitCentre"
-                      className="form-control"
-                      value={formInputs.profitCentre}
-                      onChange={handleInputChange}
-                      required
-                    />
+                    <select name="profitCentre" className="form-select" value={formInputs.profitCentre} onChange={handleInputChange} required>
+                      <option value="">Select</option>
+                      {dropdownOptions.profitCentres.map((item, idx) => (
+                        <option key={idx} value={item}>{item}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Controller</label>
-                    <input
-                      name="controller"
-                      className="form-control"
-                      value={formInputs.controller}
-                      onChange={handleInputChange}
-                      required
-                    />
+                    <select name="controller" className="form-select" value={formInputs.controller} onChange={handleInputChange} required>
+                      <option value="">Select</option>
+                      {dropdownOptions.controllers.map((item, idx) => (
+                        <option key={idx} value={item}>{item}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="col-md-2">
                     <label className="form-label">Unit Price</label>
-                    <input
-                      name="unitPrice"
-                      type="number"
-                      className="form-control"
-                      value={formInputs.unitPrice}
-                      onChange={handleInputChange}
-                      required
-                    />
+                    <input name="unitPrice" type="number" className="form-control" value={formInputs.unitPrice} onChange={handleInputChange} required />
                   </div>
                   <div className="col-md-1">
                     <label className="form-label">Currency</label>
-                    <select
-                      name="currency"
-                      className="form-select"
-                      value={formInputs.currency}
-                      onChange={handleInputChange}
-                      required
-                    >
+                    <select name="currency" className="form-select" value={formInputs.currency} onChange={handleInputChange} required>
                       <option value="">--</option>
-                      <option value="INR">₹</option>
-                      <option value="USD">$</option>
+                      {dropdownOptions.currencies.map((cur, idx) => (
+                        <option key={idx} value={cur}>{cur}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
               )}
             </div>
             <div className="modal-footer">
-              <button type="submit" className="btn btn-success">
-                Submit
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                data-bs-dismiss="modal"
-              >
-                Cancel
-              </button>
+              <button type="submit" className="btn btn-success">Submit</button>
+              <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
             </div>
           </form>
         </div>
