@@ -18,32 +18,60 @@ const PurchaseData = () => {
     brands: [],
     categories: [],
     productTypes: ["Raw material", "Semi finished", "Finished", "Traded"],
+    vendors: [],
+    locations: [],
   });
 
   const [productDetails, setProductDetails] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
-  const [selectedProducts, setSelectedProducts] = useState([]); // ✅ NEW
-  const [purchaseCounter, setPurchaseCounter] = useState(1); // can reset daily
+  const [selectedProducts, setSelectedProducts] = useState([]);
+  const [selectedVendors, setSelectedVendors] = useState([]);
+  const [selectedLocations, setSelectedLocations] = useState([]);
+  const [expandedVendor, setExpandedVendor] = useState(null);
+  const [expandedLocation, setExpandedLocation] = useState(null);
+  const [purchaseCounter, setPurchaseCounter] = useState(1);
+  const [purchases, setPurchases] = useState([]);
+
+const [selectedPurchase, setSelectedPurchase] = useState(null);
 
   useEffect(() => {
     axios.get("http://localhost:5000/api/getProductDetails").then((res) => {
       setProductDetails(res.data);
 
       const extractUnique = (key) => [
-        ...new Set(
-          res.data.map((p) => p[key]?.toString().trim()).filter((v) => v)
-        ),
+        ...new Set(res.data.map((p) => p[key]?.toString().trim()).filter((v) => v)),
       ];
 
-      setDropdownOptions({
+      setDropdownOptions((prev) => ({
+        ...prev,
         productCodes: extractUnique("productCode"),
         productGroups: extractUnique("productGroup"),
         brands: extractUnique("brand"),
         categories: extractUnique("category"),
-        productTypes: ["Raw material", "Semi finished", "Finished", "Traded"],
-      });
+      }));
+    });
+    axios.get("http://localhost:5000/api/getPurchases").then((res) => {
+    setPurchases(res.data);
+  });
+
+    axios.get("http://localhost:5000/api/getvendor").then((res) => {
+      setDropdownOptions((prev) => ({
+        ...prev,
+        vendors: res.data,
+      }));
+    });
+
+    axios.get("http://localhost:5000/api/getlocation").then((res) => {
+      setDropdownOptions((prev) => ({
+        ...prev,
+        locations: res.data,
+      }));
     });
   }, []);
+
+
+  
+
 
   useEffect(() => {
     const result = productDetails.filter((p) => {
@@ -67,21 +95,60 @@ const PurchaseData = () => {
   };
 
   const formatLabel = (key) =>
-    key
-      .replace(/([a-z])([A-Z])/g, "$1 $2")
-      .replace(/\b\w/g, (char) => char.toUpperCase());
+    key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/\b\w/g, (char) => char.toUpperCase());
 
   const toggleCheckbox = (product) => {
     setSelectedProducts((prev) =>
-      prev.includes(product)
-        ? prev.filter((p) => p !== product)
-        : [...prev, product]
+      prev.includes(product) ? prev.filter((p) => p !== product) : [...prev, product]
     );
   };
 
   const handlePurchaseClick = () => {
     const modal = new Modal(document.getElementById("purchaseModal"));
     modal.show();
+  };
+
+  const renderTableRow = (item, type) => {
+    const isSelected = (type === "vendor"
+      ? selectedVendors
+      : selectedLocations
+    ).some((i) => i.id === item.id);
+
+    const handleChange = () => {
+      const setter = type === "vendor" ? setSelectedVendors : setSelectedLocations;
+      const list = type === "vendor" ? selectedVendors : selectedLocations;
+      const exists = list.find((v) => v.id === item.id);
+
+      if (exists) {
+        setter(list.filter((v) => v.id !== item.id));
+      } else {
+        setter([...list, item]);
+      }
+    };
+
+    const handleView = () => {
+      if (type === "vendor") {
+        setExpandedVendor(item);
+        setExpandedLocation(null);
+      } else {
+        setExpandedLocation(item);
+        setExpandedVendor(null);
+      }
+    };
+
+    return (
+      <tr key={item.id}>
+        <td>
+          <input type="checkbox" checked={isSelected} onChange={handleChange} />
+        </td>
+        <td>{item.vendorName || item.locationName}</td>
+        <td>
+          <button className="btn btn-sm btn-info" onClick={handleView}>
+            View
+          </button>
+        </td>
+      </tr>
+    );
   };
 
   return (
@@ -153,53 +220,41 @@ const PurchaseData = () => {
         </tbody>
       </table>
 
-      {/* ✅ Modal for Purchase Preview */}
-      {/* ✅ Modal for Purchase Preview */}
-      <div
-        className="modal fade"
-        id="purchaseModal"
-        tabIndex="-1"
-        aria-hidden="true"
-      >
+      {/* Purchase Modal */}
+      <div className="modal fade" id="purchaseModal" tabIndex="-1" aria-hidden="true">
         <div className="modal-dialog modal-xl">
           <div className="modal-content">
             <div className="modal-header">
               <h5 className="modal-title">Selected Products</h5>
-              <button
-                type="button"
-                className="btn-close"
-                data-bs-dismiss="modal"
-              ></button>
+              <button type="button" className="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div className="modal-body">
-              {selectedProducts.length === 0 ? (
-                <p>No products selected.</p>
-              ) : (
-                <table className="table table-bordered">
-                  <thead className="table-light">
+              <div className="table-responsive">
+                <table className="table table-striped table-hover align-middle text-center">
+                  <thead className="table-primary">
                     <tr>
-                      <th>Product Code</th>
-                      <th>Description</th>
-                      <th>UOM</th>
-                      <th>Unit Price</th>
-                      <th>Currency</th>
-                      <th>Quantity</th>
-                      <th>Total (₹)</th>
+                      <th scope="col">#</th>
+                      <th scope="col">Product Code</th>
+                      <th scope="col">Description</th>
+                      <th scope="col">UOM</th>
+                      <th scope="col">Unit Price (₹)</th>
+                      <th scope="col">Quantity</th>
+                      <th scope="col">Total (₹)</th>
                     </tr>
                   </thead>
                   <tbody>
                     {selectedProducts.map((prod, idx) => (
                       <tr key={idx}>
+                        <td>{idx + 1}</td>
                         <td>{prod.productCode}</td>
-                        <td>{prod.description}</td>
+                        <td className="text-start">{prod.description}</td>
                         <td>{prod.uom}</td>
-                        <td>{prod.unitPrice}</td>
-                        <td>{prod.currency}</td>
-                        <td>
+                        <td>₹ {parseFloat(prod.unitPrice).toFixed(2)}</td>
+                        <td style={{ width: "120px" }}>
                           <input
                             type="number"
                             min="0"
-                            className="form-control"
+                            className="form-control form-control-sm"
                             value={prod.quantity || ""}
                             onChange={(e) => {
                               const value = parseFloat(e.target.value) || 0;
@@ -213,7 +268,9 @@ const PurchaseData = () => {
                             }}
                           />
                         </td>
-                        <td>₹ {prod.total ? prod.total.toFixed(2) : "0.00"}</td>
+                        <td>
+                          ₹ {prod.total ? prod.total.toFixed(2) : "0.00"}
+                        </td>
                       </tr>
                     ))}
                     <tr className="table-light fw-bold">
@@ -229,144 +286,212 @@ const PurchaseData = () => {
                     </tr>
                   </tbody>
                 </table>
-              )}
+              </div>
             </div>
+
             <div className="modal-footer">
-              <button className="btn btn-secondary" data-bs-dismiss="modal">
-                Close
-              </button>
+              <button className="btn btn-secondary" data-bs-dismiss="modal">Close</button>
               <button
                 className="btn btn-primary"
                 onClick={() => {
-                  const vendorModal = new Modal(
-                    document.getElementById("vendorLocationModal")
-                  );
-                  vendorModal.show();
+                  new Modal(document.getElementById("vendorLocationModal")).show();
                 }}
               >
                 Next
               </button>
             </div>
-            <div
-              className="modal fade"
-              id="vendorLocationModal"
-              tabIndex="-1"
-              aria-hidden="true"
-            >
-              <div className="modal-dialog modal-md">
-                <div className="modal-content">
-                  <div className="modal-header">
-                    <h5 className="modal-title">Confirm Vendor & Location</h5>
-                    <button
-                      type="button"
-                      className="btn-close"
-                      data-bs-dismiss="modal"
-                    ></button>
-                  </div>
-                  <div className="modal-body">
-                    {(() => {
-                      const uniqueVendors = [
-                        ...new Set(selectedProducts.map((p) => p.vendor)),
-                      ];
-                      const uniqueLocations = [
-                        ...new Set(selectedProducts.map((p) => p.location)),
-                      ];
+          </div>
+        </div>
+      </div>
 
-                      if (
-                        uniqueVendors.length > 1 ||
-                        uniqueLocations.length > 1
-                      ) {
-                        return (
-                          <div className="alert alert-warning">
-                            Products have different vendors or locations. Please
-                            select consistent products.
-                          </div>
-                        );
-                      }
-
-                      const vendor = uniqueVendors[0] || "N/A";
-                      const location = uniqueLocations[0] || "N/A";
-
-                      return (
-                        <>
-                          <p>
-                            <strong>Vendor:</strong> {vendor}
-                          </p>
-                          <p>
-                            <strong>Location:</strong> {location}
-                          </p>
-                        </>
-                      );
-                    })()}
-                  </div>
-                  <div className="modal-footer">
-                    <button
-                      className="btn btn-secondary"
-                      data-bs-dismiss="modal"
-                    >
-                      Back
-                    </button>
-                    <button
-                      className="btn btn-success"
-                      onClick={() => {
-                        const uniqueVendors = [
-                          ...new Set(selectedProducts.map((p) => p.vendor)),
-                        ];
-                        const uniqueLocations = [
-                          ...new Set(selectedProducts.map((p) => p.location)),
-                        ];
-
-                        if (
-                          uniqueVendors.length > 1 ||
-                          uniqueLocations.length > 1
-                        ) {
-                          alert(
-                            "Cannot proceed. Products have multiple vendors or locations."
-                          );
-                          return;
-                        }
-
-                        const vendor = uniqueVendors[0];
-                        const location = uniqueLocations[0];
-
-                        const today = new Date();
-                        const year = today.getFullYear();
-                        const month = String(today.getMonth() + 1).padStart(
-                          2,
-                          "0"
-                        );
-                        const day = String(today.getDate()).padStart(2, "0");
-                        const counter = String(purchaseCounter).padStart(
-                          4,
-                          "0"
-                        );
-
-                        const referenceId = `PR${year}${month}${day}${counter}`;
-
-                        alert(
-                          `✅ Purchase Confirmed!\nReference ID: ${referenceId}\nVendor: ${vendor}\nLocation: ${location}`
-                        );
-
-                        setPurchaseCounter((prev) => prev + 1);
-                        setSelectedProducts([]);
-
-                        Modal.getInstance(
-                          document.getElementById("purchaseModal")
-                        )?.hide();
-                        Modal.getInstance(
-                          document.getElementById("vendorLocationModal")
-                        )?.hide();
-                      }}
-                    >
-                      Confirm Purchase
-                    </button>
-                  </div>
+      {/* Vendor & Location Modal */}
+      <div className="modal fade" id="vendorLocationModal" tabIndex="-1" aria-hidden="true">
+        <div className="modal-dialog modal-xl">
+          <div className="modal-content">
+            <div className="modal-header bg-primary text-white">
+              <h5 className="modal-title">Select Vendor(s) & Location(s)</h5>
+              <button type="button" className="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div className="modal-body">
+              <div className="row">
+                <div className="col-md-6">
+                  <h6>Vendors</h6>
+                  <table className="table table-bordered">
+                    <thead className="table-light">
+                      <tr><th>Select</th><th>Name</th><th>Action</th></tr>
+                    </thead>
+                    <tbody>
+                      {dropdownOptions.vendors.map((v) => renderTableRow(v, "vendor"))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="col-md-6">
+                  <h6>Locations</h6>
+                  <table className="table table-bordered">
+                    <thead className="table-light">
+                      <tr><th>Select</th><th>Name</th><th>Action</th></tr>
+                    </thead>
+                    <tbody>
+                      {dropdownOptions.locations.map((l) => renderTableRow(l, "location"))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
+              {(expandedVendor || expandedLocation) && (
+                <div className="mt-4 alert alert-info">
+                  <h6>Details</h6>
+                  <pre className="mb-0">
+                    {JSON.stringify(expandedVendor || expandedLocation, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" data-bs-dismiss="modal">Back</button>
+              <button
+                className="btn btn-success"
+                onClick={async () => {
+                  if (!selectedVendors.length || !selectedLocations.length) {
+                    alert("Please select at least one vendor and one location.");
+                    return;
+                  }
+
+                  const today = new Date();
+                  const year = today.getFullYear();
+                  const month = String(today.getMonth() + 1).padStart(2, "0");
+                  const day = String(today.getDate()).padStart(2, "0");
+                  const counter = String(purchaseCounter).padStart(4, "0");
+                  const referenceId = `PR${year}${month}${day}${counter}`;
+
+                  const total = selectedProducts.reduce((sum, p) => sum + (p.total || 0), 0);
+
+                  try {
+                    await axios.post("http://localhost:5000/api/savePurchase", {
+                      referenceId,
+                      selectedProducts,
+                      vendors: selectedVendors,
+                      locations: selectedLocations,
+                      total,
+                    });
+
+                    alert(
+                      `✅ Purchase Confirmed!\nReference ID: ${referenceId}\nVendors: ${selectedVendors
+                        .map((v) => v.vendorName)
+                        .join(", ")}\nLocations: ${selectedLocations
+                          .map((l) => l.locationName)
+                          .join(", ")}`
+                    );
+
+                    setPurchaseCounter((prev) => prev + 1);
+                    setSelectedProducts([]);
+                    setSelectedVendors([]);
+                    setSelectedLocations([]);
+
+                    Modal.getInstance(document.getElementById("purchaseModal"))?.hide();
+                    Modal.getInstance(document.getElementById("vendorLocationModal"))?.hide();
+
+                    const res = await axios.get("http://localhost:5000/api/getPurchases");
+                    setPurchases(res.data);
+                  } catch (error) {
+                    console.error("Error saving purchase:", error);
+                    alert("Failed to save purchase.");
+                  }
+                }}
+
+              >
+                Confirm Purchase
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      <h5 className="mt-5 mb-3 text-primary">🧾 Submitted Purchases</h5>
+<div className="table-responsive shadow-sm rounded border">
+  <table className="table table-hover align-middle">
+    <thead className="table-dark text-white">
+      <tr>
+        <th>📄 Ref ID</th>
+        <th>📦 Product</th>
+        <th>🏢 Vendor(s)</th>
+        <th>📍 Location(s)</th>
+        <th>🔢 Qty</th>
+        <th>💰 Total (₹)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {purchases.map((p, idx) => (
+        <tr key={idx} style={{ cursor: "pointer" }}
+          onClick={() => {
+            setSelectedPurchase(p);
+            new Modal(document.getElementById("purchaseDetailsModal")).show();
+          }}
+        >
+          <td className="text-primary fw-semibold">{p.referenceId}</td>
+          <td>{p.productCode} - {p.description}</td>
+          <td>{p.vendors}</td>
+          <td>{p.locations}</td>
+          <td>{p.quantity}</td>
+          <td className="text-success fw-bold">₹ {parseFloat(p.total).toFixed(2)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+<div className="modal fade" id="purchaseDetailsModal" tabIndex="-1" aria-hidden="true">
+  <div className="modal-dialog modal-lg">
+    <div className="modal-content border-0 shadow-lg">
+      <div className="modal-header bg-gradient text-white" style={{ backgroundColor: "#0d6efd" }}>
+        <h5 className="modal-title">🧾 Purchase Summary</h5>
+        <button className="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div className="modal-body p-4">
+        {selectedPurchase ? (
+          <div className="row g-3">
+            <div className="col-12 mb-2">
+              <h6 className="text-secondary"><strong>Reference ID:</strong> {selectedPurchase.referenceId}</h6>
+              <hr />
+            </div>
+            <div className="col-md-6">
+              <strong>📦 Product:</strong><br />
+              {selectedPurchase.productCode} - {selectedPurchase.description}
+            </div>
+            <div className="col-md-6">
+              <strong>📐 UOM:</strong><br />
+              {selectedPurchase.uom}
+            </div>
+            <div className="col-md-6">
+              <strong>💸 Unit Price:</strong><br />
+              ₹ {parseFloat(selectedPurchase.unitPrice).toFixed(2)}
+            </div>
+            <div className="col-md-6">
+              <strong>🔢 Quantity:</strong><br />
+              {selectedPurchase.quantity}
+            </div>
+            <div className="col-md-6">
+              <strong>💰 Total:</strong><br />
+              ₹ {parseFloat(selectedPurchase.total).toFixed(2)}
+            </div>
+            <div className="col-md-6">
+              <strong>🏢 Vendor(s):</strong><br />
+              {selectedPurchase.vendors}
+            </div>
+            <div className="col-md-6">
+              <strong>📍 Location(s):</strong><br />
+              {selectedPurchase.locations}
+            </div>
+          </div>
+        ) : (
+          <div className="text-muted">Loading details...</div>
+        )}
+      </div>
+      <div className="modal-footer">
+        <button className="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
     </div>
   );
 };

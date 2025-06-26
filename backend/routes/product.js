@@ -144,6 +144,44 @@ router.post("/savevendor", (req, res) => {
 });
 
 
+// POST /api/savePurchase
+router.post("/savePurchase", (req, res) => {
+  const { referenceId, selectedProducts, vendors, locations, total } = req.body;
+
+  const purchaseQuery = `
+    INSERT INTO purchases (referenceId, productCode, description, uom, unitPrice, quantity, total, vendors, locations, grandTotal)
+    VALUES ?
+  `;
+
+  const values = selectedProducts.map(p => [
+    referenceId,
+    p.productCode,
+    p.description,
+    p.uom,
+    p.unitPrice,
+    p.quantity,
+    p.total,
+    vendors.map(v => v.vendorName).join(", "),
+    locations.map(l => l.locationName).join(", "),
+    total
+  ]);
+
+  connection.query(purchaseQuery, [values], (err, result) => {
+    if (err) return res.status(500).send(err);
+    res.send({ message: "Purchase saved successfully" });
+  });
+});
+
+
+// GET /api/getPurchases
+router.get("/getPurchases", (req, res) => {
+  connection.query("SELECT * FROM purchases ORDER BY id DESC", (err, results) => {
+    if (err) return res.status(500).send(err);
+    res.send(results);
+  });
+});
+
+
 
 
 
