@@ -3,7 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { toast, ToastContainer, Zoom } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import logo from '../assests/logo.png'
+import logo from '../assests/logo.png';
+
 function Signup() {
   const navigate = useNavigate();
 
@@ -11,8 +12,14 @@ function Signup() {
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    role: ''
   });
+
+  const roles = [
+    'Requestor', 'Approver', 'PurchaseOfficer',
+    'Storekeeper', 'Vendor', 'Finance', 'Admin', 'Controller'
+  ];
 
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -42,6 +49,10 @@ function Signup() {
       temp.confirmPassword = fieldValues.confirmPassword === form.password ? '' : 'Passwords do not match';
     }
 
+    if ('role' in fieldValues) {
+      temp.role = fieldValues.role ? '' : 'Select a role';
+    }
+
     setErrors({ ...temp });
   };
 
@@ -50,6 +61,7 @@ function Signup() {
     form.email &&
     form.password &&
     form.confirmPassword &&
+    form.role &&
     Object.values(errors).every((x) => x === '');
 
   const handleChange = (e) => {
@@ -67,7 +79,8 @@ function Signup() {
       const res = await axios.post('http://localhost:5000/api/signup', {
         name: form.name,
         email: form.email,
-        password: form.password
+        password: form.password,
+        role: form.role
       });
 
       toast.success(res.data.message || "Signup successful", {
@@ -104,15 +117,14 @@ function Signup() {
         maxWidth: "420px",
         textAlign: "center"
       }}>
-       <div style={{
-         width: "200px",
-         height: "70px",
-        
-         margin: "0 auto 1.5rem",
-         overflow: "hidden"
-       }}>
-         <img src={logo} alt="ERP Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-       </div>
+        <div style={{
+          width: "200px",
+          height: "70px",
+          margin: "0 auto 1.5rem",
+          overflow: "hidden"
+        }}>
+          <img src={logo} alt="ERP Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        </div>
 
         <h4 className="mb-4 fw-semibold">Create an Account</h4>
 
@@ -124,7 +136,6 @@ function Signup() {
             value={form.name}
             onChange={handleChange}
             className={`form-control mb-3 ${touched.name && errors.name ? 'is-invalid' : ''}`}
-            required
           />
           {touched.name && errors.name && <div className="invalid-feedback">{errors.name}</div>}
 
@@ -135,7 +146,6 @@ function Signup() {
             value={form.email}
             onChange={handleChange}
             className={`form-control mb-3 ${touched.email && errors.email ? 'is-invalid' : ''}`}
-            required
           />
           {touched.email && errors.email && <div className="invalid-feedback">{errors.email}</div>}
 
@@ -146,7 +156,6 @@ function Signup() {
             value={form.password}
             onChange={handleChange}
             className={`form-control mb-3 ${touched.password && errors.password ? 'is-invalid' : ''}`}
-            required
           />
           {touched.password && errors.password && <div className="invalid-feedback">{errors.password}</div>}
 
@@ -156,10 +165,20 @@ function Signup() {
             placeholder="Confirm Password"
             value={form.confirmPassword}
             onChange={handleChange}
-            className={`form-control mb-4 ${touched.confirmPassword && errors.confirmPassword ? 'is-invalid' : ''}`}
-            required
+            className={`form-control mb-3 ${touched.confirmPassword && errors.confirmPassword ? 'is-invalid' : ''}`}
           />
           {touched.confirmPassword && errors.confirmPassword && <div className="invalid-feedback">{errors.confirmPassword}</div>}
+
+          <select
+            name="role"
+            value={form.role}
+            onChange={handleChange}
+            className={`form-control mb-4 ${touched.role && errors.role ? 'is-invalid' : ''}`}
+          >
+            <option value="">Select Role</option>
+            {roles.map((r, i) => <option key={i} value={r}>{r}</option>)}
+          </select>
+          {touched.role && errors.role && <div className="invalid-feedback">{errors.role}</div>}
 
           <button
             type="submit"
