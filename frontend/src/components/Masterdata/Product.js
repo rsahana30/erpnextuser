@@ -3,7 +3,6 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import Modal from "bootstrap/js/dist/modal";
 import "bootstrap/dist/css/bootstrap.min.css";
-import "bootstrap/dist/js/bootstrap.bundle.min.js";
 
 const Product = () => {
   const [products, setProducts] = useState([]);
@@ -14,51 +13,70 @@ const Product = () => {
     category: "",
   });
 
-  const [selectedProduct, setSelectedProduct] = useState(null);
   const [formInputs, setFormInputs] = useState({
     productCode: "",
     description: "",
     uom: "",
+    weight: "",
+    weightUnit: "",
     unitPrice: "",
-    hsnCode: "",
+    valuationClass: "",
     profitCentre: "",
+    hsnCode: "",
+    currency: "",
     controller: "",
     productType: "",
-    currency: "",
+    productGroup: "",
+    brand: "",
+    category: "",
   });
 
   const [dropdownOptions, setDropdownOptions] = useState({
     productGroups: [],
     brands: [],
     categories: [],
-    productTypes: ["Raw material", "Semi finished", "Finished", "Traded"],
+    productTypes: [],
     profitCentres: ["P1001", "P1002", "P1003", "P1004"],
     controllers: ["John Doe", "Jane Smith", "Carlos Vega", "Priya Iyer"],
     currencies: ["INR", "USD", "EUR", "JPY"],
+    uoms: ["PCS", "KG", "L"],
+    weightUnits: ["KG", "G", "MG"],
+    valuationClasses: ["V100", "V200", "V300"],
   });
 
   const navigate = useNavigate();
 
-  const fetchProducts = () => {
-    axios.get("http://localhost:5000/api/productconfig")
-      .then((res) => {
-        setProducts(res.data);
+  const fetchDropdowns = async () => {
+    try {
+      const [types, groups, brands, categories] = await Promise.all([
+        axios.get("http://localhost:5000/api/product_types"),
+        axios.get("http://localhost:5000/api/product_groups"),
+        axios.get("http://localhost:5000/api/brands"),
+        axios.get("http://localhost:5000/api/category"),
+      ]);
+      setDropdownOptions((prev) => ({
+        ...prev,
+        productTypes: types.data.map((item) => item.name || item.productType),
+        productGroups: groups.data.map((item) => item.name || item.productGroup),
+        brands: brands.data.map((item) => item.name || item.brand),
+        categories: categories.data.map((item) => item.name || item.category),
+      }));
+    } catch (err) {
+      console.error("Error fetching dropdowns:", err);
+    }
+  };
 
-        const extractUnique = (key) => [
-          ...new Set(res.data.map((p) => p[key]?.toString().trim()).filter(Boolean)),
-        ];
-
-        setDropdownOptions((prev) => ({
-          ...prev,
-          productGroups: extractUnique("productGroup"),
-          brands: extractUnique("brand"),
-          categories: extractUnique("category"),
-        }));
-      })
-      .catch((err) => console.error("Error fetching product config:", err));
+  const fetchProducts = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/products");
+      setProducts(res.data);
+    } catch (err) {
+      console.error("Error fetching products:", err);
+    }
   };
 
   useEffect(() => {
+    fetchDropdowns();
     fetchProducts();
   }, []);
 
@@ -77,63 +95,68 @@ const Product = () => {
     setFormInputs({ ...formInputs, [e.target.name]: e.target.value });
   };
 
-  const filteredProducts = products.filter((p) => (
+  const handleCreateClick = () => {
+    const { productType, productGroup, brand, category } = filters;
+    setFormInputs({
+      productCode: "",
+      description: "",
+      uom: "",
+      weight: "",
+      weightUnit: "",
+      unitPrice: "",
+      valuationClass: "",
+      profitCentre: "",
+      hsnCode: "",
+      currency: "",
+      controller: "",
+      productType,
+      productGroup,
+      brand,
+      category,
+    });
+    new Modal(document.getElementById("createProductModal")).show();
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const existing = products.find(p => p.productCode === formInputs.productCode);
+      if (existing) {
+        await axios.put(`http://localhost:5000/api/updateProduct/${formInputs.productCode}`, formInputs);
+        alert("Product updated successfully!");
+      } else {
+        await axios.post("http://localhost:5000/api/saveProductDetails", formInputs);
+        alert("Product created successfully!");
+      }
+      fetchProducts();
+      document.getElementById("closeModalBtn").click();
+    } catch (err) {
+      console.error("Save/Update failed:", err);
+    }
+  };
+
+  const formatLabel = (key) =>
+    key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^\w/, (c) => c.toUpperCase());
+
+  const filteredProducts = products.filter((p) =>
     (!filters.productType || p.productType === filters.productType) &&
     (!filters.productGroup || p.productGroup === filters.productGroup) &&
     (!filters.brand || p.brand === filters.brand) &&
     (!filters.category || p.category === filters.category)
-  ));
-
-  const handleCreateClick = () => {
-    const selected = products.find((p) => (
-      (!filters.productType || p.productType === filters.productType) &&
-      (!filters.productGroup || p.productGroup === filters.productGroup) &&
-      (!filters.brand || p.brand === filters.brand) &&
-      (!filters.category || p.category === filters.category)
-    ));
-
-    if (selected) {
-      setSelectedProduct(selected);
-      setFormInputs({
-        productCode: "",
-        description: "",
-        uom: "",
-        unitPrice: "",
-        hsnCode: "",
-        profitCentre: "",
-        controller: "",
-        productType: "",
-        currency: "",
-      });
-      new Modal(document.getElementById("createProductModal")).show();
-    }
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const finalData = { ...selectedProduct, ...formInputs };
-    axios.post("http://localhost:5000/api/saveProductDetails", finalData)
-      .then(() => {
-        alert("Product detail created!");
-        document.getElementById("closeModalBtn").click();
-        fetchProducts();
-      });
-  };
-
-  const formatLabel = (key) =>
-    key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/\b\w/g, (char) => char.toUpperCase());
+  );
 
   return (
     <div className="container mt-4">
-      <div className="d-flex justify-content-end mb-3">
-        <button className="btn btn-success" onClick={handleCreateClick}>
+      <div className="d-flex justify-content-between mb-3">
+        <h4>Product Master</h4>
+        <button className="btn btn-dark" onClick={handleCreateClick}>
           Create Product
         </button>
       </div>
 
-      <div className="d-flex flex-wrap gap-3 mb-4">
+      <div className="row g-3 mb-4">
         {Object.keys(filters).map((field) => (
-          <div key={field}>
+          <div className="col-md-3" key={field}>
             <label className="form-label">{formatLabel(field)}</label>
             <select
               className="form-select"
@@ -154,25 +177,43 @@ const Product = () => {
         <thead className="table-light">
           <tr>
             <th>Product Code</th>
+            <th>Description</th>
             <th>Product Group</th>
             <th>Brand</th>
             <th>Category</th>
+            <th>Unit Price</th>
+            <th>UOM</th>
             <th>View</th>
+            <th>Update</th>
           </tr>
         </thead>
         <tbody>
-          {filteredProducts.map((p, idx) => (
+          {filteredProducts.map((prod, idx) => (
             <tr key={idx}>
-              <td>{p.productCode}</td>
-              <td>{p.productGroup}</td>
-              <td>{p.brand}</td>
-              <td>{p.category}</td>
+              <td>{prod.productCode}</td>
+              <td>{prod.description}</td>
+              <td>{prod.productGroup}</td>
+              <td>{prod.brand}</td>
+              <td>{prod.category}</td>
+              <td>{prod.unitPrice}</td>
+              <td>{prod.uom}</td>
               <td>
                 <button
-                  className="btn btn-info btn-sm"
-                  onClick={() => navigate("/view-product", { state: { productCode: p.productCode } })}
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => navigate("/view-product", { state: prod })}
                 >
                   View
+                </button>
+              </td>
+              <td>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    setFormInputs(prod);
+                    new Modal(document.getElementById("createProductModal")).show();
+                  }}
+                >
+                  Update
                 </button>
               </td>
             </tr>
@@ -183,91 +224,67 @@ const Product = () => {
       <div className="modal fade" id="createProductModal" tabIndex="-1" aria-hidden="true">
         <div className="modal-dialog modal-lg">
           <form className="modal-content" onSubmit={handleSubmit}>
-            <div className="modal-header">
-              <h5 className="modal-title">Create Product Master</h5>
+            <div className="modal-header bg-secondary text-white">
+              <h5 className="modal-title">
+                {products.some(p => p.productCode === formInputs.productCode) ? "Update Product" : "Create Product"}
+              </h5>
               <button type="button" id="closeModalBtn" className="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div className="modal-body">
-              {selectedProduct && (
-                <div className="row g-3 mb-3">
-                  <div className="col-md-3">
-                    <label className="form-label">Product Code</label>
-                    <input name="productCode" className="form-control" value={formInputs.productCode} onChange={handleInputChange} required />
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Description</label>
-                    <input name="description" className="form-control" value={formInputs.description} onChange={handleInputChange} required />
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Product Type</label>
-                    <select name="productType" className="form-select" value={formInputs.productType} onChange={handleInputChange} required>
-                      <option value="">Select</option>
-                      {dropdownOptions.productTypes.map((type, idx) => (
-                        <option key={idx} value={type}>{type}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">UOM</label>
-                    <select name="uom" className="form-select" value={formInputs.uom} onChange={handleInputChange} required>
-                      <option value="">Select</option>
-                      <option value="PCS">PCS</option>
-                      <option value="KG">KG</option>
-                      <option value="L">L</option>
-                    </select>
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label">Product Group</label>
-                    <input className="form-control" value={selectedProduct.productGroup} disabled />
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label">Brand</label>
-                    <input className="form-control" value={selectedProduct.brand} disabled />
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label">Category</label>
-                    <input className="form-control" value={selectedProduct.category} disabled />
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">HSN Code</label>
-                    <input name="hsnCode" className="form-control" value={formInputs.hsnCode} onChange={handleInputChange} required />
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Profit Centre</label>
-                    <select name="profitCentre" className="form-select" value={formInputs.profitCentre} onChange={handleInputChange} required>
-                      <option value="">Select</option>
-                      {dropdownOptions.profitCentres.map((item, idx) => (
-                        <option key={idx} value={item}>{item}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Controller</label>
-                    <select name="controller" className="form-select" value={formInputs.controller} onChange={handleInputChange} required>
-                      <option value="">Select</option>
-                      {dropdownOptions.controllers.map((item, idx) => (
-                        <option key={idx} value={item}>{item}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="col-md-2">
-                    <label className="form-label">Unit Price</label>
-                    <input name="unitPrice" type="number" className="form-control" value={formInputs.unitPrice} onChange={handleInputChange} required />
-                  </div>
-                  <div className="col-md-1">
-                    <label className="form-label">Currency</label>
-                    <select name="currency" className="form-select" value={formInputs.currency} onChange={handleInputChange} required>
-                      <option value="">--</option>
-                      {dropdownOptions.currencies.map((cur, idx) => (
-                        <option key={idx} value={cur}>{cur}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
+              <div className="row g-3">
+                {Object.entries(formInputs).map(([key, value]) => {
+                  const isDropdown = [
+                    "productGroup", "brand", "category", "productType", "uom",
+                    "weightUnit", "valuationClass", "currency", "profitCentre", "controller"
+                  ].includes(key);
+
+                  const isDisabled = ["productType", "productGroup", "brand", "category"].includes(key);
+
+                  const dropdownKey =
+                    key === "uom" ? "uoms" :
+                      key === "weightUnit" ? "weightUnits" :
+                        key === "valuationClass" ? "valuationClasses" :
+                          key === "profitCentre" ? "profitCentres" :
+                            key === "controller" ? "controllers" :
+                              key === "currency" ? "currencies" :
+                                key === "category" ? "categories" :
+                                  key + "s";
+
+                  return (
+                    <div className="col-md-4" key={key}>
+                      <label className="form-label">{formatLabel(key)}</label>
+                      {isDropdown ? (
+                        <select
+                          className="form-select"
+                          name={key}
+                          value={value}
+                          onChange={handleInputChange}
+                          required
+                          disabled={isDisabled}  // 👈 DISABLE here for prefilled fields
+                        >
+                          <option value="">Select</option>
+                          {dropdownOptions[dropdownKey]?.map((item, idx) => (
+                            <option key={idx} value={item}>{item}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={(key === "unitPrice" || key === "weight") ? "number" : "text"}
+                          className="form-control"
+                          name={key}
+                          value={value}
+                          onChange={handleInputChange}
+                          required
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+
+              </div>
             </div>
             <div className="modal-footer">
-              <button type="submit" className="btn btn-success">Submit</button>
+              <button type="submit" className="btn btn-dark">Save</button>
               <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
             </div>
           </form>

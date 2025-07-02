@@ -1,13 +1,14 @@
+// ✅ auth.js (Authentication & JWT)
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const connection = require("../db"); // custom db connection module
+const connection = require("../db");
 require("dotenv").config();
 
 // Signup
 router.post("/signup", async (req, res) => {
-  const { name, email, password, selectedModule } = req.body;
+  const { name, email, password, selectedModule, role } = req.body;
 
   connection.query("SELECT * FROM users WHERE email = ?", [email], async (err, result) => {
     if (err) return res.status(500).json({ message: "DB error" });
@@ -15,8 +16,8 @@ router.post("/signup", async (req, res) => {
 
     try {
       const hashedPassword = await bcrypt.hash(password, 10);
-      const insertUser = "INSERT INTO users (name, email, password, selected_module) VALUES (?, ?, ?, ?)";
-      connection.query(insertUser, [name, email, hashedPassword, selectedModule], (err) => {
+      const insertUser = "INSERT INTO users (name, email, password, selected_module, role) VALUES (?, ?, ?, ?, ?)";
+      connection.query(insertUser, [name, email, hashedPassword, selectedModule, role], (err) => {
         if (err) return res.status(500).json({ message: "Error creating user" });
         res.json({ message: "Signup successful" });
       });
@@ -39,7 +40,7 @@ router.post("/login", (req, res) => {
     if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
     const token = jwt.sign(
-      { id: user.id, name: user.name, email: user.email },
+      { id: user.id, name: user.name, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
@@ -52,6 +53,7 @@ router.post("/login", (req, res) => {
         name: user.name,
         email: user.email,
         selectedModule: user.selected_module,
+        role: user.role,
       },
     });
   });

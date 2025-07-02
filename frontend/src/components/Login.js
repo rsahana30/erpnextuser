@@ -43,9 +43,13 @@ function Login() {
     try {
       const res = await axios.post("http://localhost:5000/api/login", form);
 
-      localStorage.setItem("token", res.data.token);
+
       localStorage.setItem("userName", res.data.user.name);
       localStorage.setItem("selectedModule", form.module);
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("role", res.data.user.role);
+      localStorage.setItem("userId", res.data.user.id);
+
 
       toast.success(`Welcome ${res.data.user.name}!`, {
         position: "top-center",

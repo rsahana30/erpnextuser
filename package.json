@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "bootstrap": "^5.3.7",
+    "nodemailer": "^7.0.4",
     "react-select": "^5.10.1"
   }
 }

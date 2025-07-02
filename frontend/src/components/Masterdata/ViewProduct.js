@@ -1,52 +1,39 @@
-import React, { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
-import axios from "axios";
+import React from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import "bootstrap/dist/css/bootstrap.min.css";
 
 const ViewProduct = () => {
-  const location = useLocation();
-  const productCode = location.state?.productCode;
-  const [productDetails, setProductDetails] = useState([]);
+  const { state } = useLocation();
+  const navigate = useNavigate();
+  const product = state || {};
 
-  useEffect(() => {
-    if (!productCode) return;
-
-    axios.get("http://localhost:5000/api/getProductDetails") // Replace with your real endpoint
-      .then((res) => {
-        console.log(res);
-        
-        const filtered = res.data.filter((p) => p.productCode === productCode);
-        setProductDetails(filtered);
-      })
-      .catch((err) => console.error("Fetch error:", err));
-  }, [productCode]);
+  const formatLabel = (label) =>
+    label.replace(/([A-Z])/g, " $1").replace(/^\w/, (c) => c.toUpperCase());
 
   return (
-    <div className="container mt-4">
-      <h4 className="mb-4">Products with Product Code: {productCode}</h4>
-      <div className="row">
-        {productDetails.length > 0 ? (
-          productDetails.map((p, idx) => (
-            <div className="col-md-4 mb-4" key={idx}>
-              <div className="card shadow-sm h-100">
-                <div className="card-body">
-                  <h6 className="card-title text-primary">{p.productCode} - {p.product}</h6>
-                  <p><strong>Description:</strong> {p.description}</p>
-                  <p><strong>UOM:</strong> {p.uom}</p>
-                  <p><strong>Unit Price:</strong> ₹{p.unitPrice}</p>
-                  <p><strong>Product Type</strong> {p.productType}</p>
-                  <p><strong>Group:</strong> {p.productGroup}</p>
-                  <p><strong>Brand:</strong> {p.brand}</p>
-                  <p><strong>Category:</strong> {p.category}</p>
-                  <p><strong>HSN Code:</strong> {p.hsnCode}</p>
-                  <p><strong>Profit Centre:</strong> {p.profitCentre}</p>
-                  <p><strong>Controller:</strong> {p.controller}</p>
-                </div>
+    <div className="container mt-5">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h3 className="fw-bold text-dark">📄 Product Document</h3>
+        <button className="btn btn-outline-secondary" onClick={() => navigate(-1)}>
+          ← Back
+        </button>
+      </div>
+
+      <div className="card shadow-sm border-0">
+        <div className="card-body">
+          {Object.entries(product).map(([key, value], idx) => (
+            <div
+              className={`row py-2 ${idx % 2 === 0 ? "bg-light" : ""}`}
+              key={key}
+              style={{ borderBottom: "1px solid #eee" }}
+            >
+              <div className="col-md-4 fw-semibold text-capitalize">
+                {formatLabel(key)}
               </div>
+              <div className="col-md-8 text-muted">{value}</div>
             </div>
-          ))
-        ) : (
-          <p>No entries found for this product code.</p>
-        )}
+          ))}
+        </div>
       </div>
     </div>
   );
