@@ -3,285 +3,377 @@ import axios from "axios";
 import Modal from "bootstrap/js/dist/modal";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import Navbar from "../Navbar";
 import MasterDataSidebar from "./MasterDataSidebar";
 
 const Vendor = () => {
   const [vendors, setVendors] = useState([]);
-  const [filters, setFilters] = useState({ vendorType: "", country: "", state: "" });
-  const [formInputs, setFormInputs] = useState({
-    vendorCode: "",
-    vendorName: "",
-    vendorType: "",
-    address: "",
+  const [countries, setCountries] = useState([]);
+  const [reconAccounts, setReconAccounts] = useState([]);
+  const [countryFilter, setCountryFilter] = useState("");
+  const [reconFilter, setReconFilter] = useState("");
+  const [form, setForm] = useState({
+    supplierNumber: "",
+    supplierName: "",
     country: "",
-    state: "",
-    gstcode: "",
+    address: "",
+    postalCode: "",
+    email: "",
+    reconAccount: "",
   });
-  const [selectedVendor, setSelectedVendor] = useState(null);
-
-  const defaultDropdowns = {
-    vendorTypes: ["Raw Material", "Service", "Logistics", "Consultant"],
-    countries: ["India", "Germany", "USA", "China", "Dubai"],
-    states: ["Karnataka", "Maharashtra", "Delhi", "Tamil Nadu"],
-  };
-
-  const [dropdownOptions, setDropdownOptions] = useState(defaultDropdowns);
-
-  const dropdownKeyMap = {
-    vendorType: "vendorTypes",
-    country: "countries",
-    state: "states",
-  };
-
-  const fetchVendors = () => {
-    axios
-      .get("http://localhost:5000/api/getvendor")
-      .then((res) => {
-        setVendors(res.data);
-
-        const getUniqueMerged = (key, defaults) => {
-          const values = [...res.data.map((v) => v[key]?.trim()).filter(Boolean)];
-          return [...new Set([...defaults, ...values])];
-        };
-
-        setDropdownOptions({
-          vendorTypes: getUniqueMerged("vendorType", defaultDropdowns.vendorTypes),
-          countries: getUniqueMerged("country", defaultDropdowns.countries),
-          states: getUniqueMerged("state", defaultDropdowns.states),
-        });
-      })
-      .catch((err) => console.error("Error fetching vendors:", err));
-  };
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentVendorId, setCurrentVendorId] = useState(null);
+  const [viewVendor, setViewVendor] = useState(null);
 
   useEffect(() => {
     fetchVendors();
+    fetchDropdowns();
   }, []);
 
-  const handleInputChange = (e) =>
-    setFormInputs({ ...formInputs, [e.target.name]: e.target.value });
+  const fetchVendors = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/vendors");
+      setVendors(res.data);
+    } catch (err) {
+      console.error("Failed to fetch vendors", err);
+    }
+  };
 
-  const handleFilterChange = (e) =>
-    setFilters({ ...filters, [e.target.name]: e.target.value });
+  const fetchDropdowns = async () => {
+    try {
+      const [countryRes, reconRes] = await Promise.all([
+        axios.get("http://localhost:5000/api/countries"),
+        axios.get("http://localhost:5000/api/reconAccounts"),
+      ]);
+      setCountries(countryRes.data);
+      setReconAccounts(reconRes.data);
+    } catch (err) {
+      console.error("Failed to fetch dropdowns", err);
+    }
+  };
 
-  const filteredVendors = vendors.filter(
-    (v) =>
-      (!filters.vendorType || v.vendorType === filters.vendorType) &&
-      (!filters.country || v.country === filters.country) &&
-      (!filters.state || v.state === filters.state)
-  );
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
-  const handleSubmit = (e) => {
+  const openModal = () => {
+    setForm((prev) => ({
+      ...prev,
+      country: countryFilter || "",
+      reconAccount: reconFilter || "",
+    }));
+    const modal = new Modal(document.getElementById("vendorModal"));
+    modal.show();
+  };
+
+  const handleEdit = (vendor) => {
+    setForm({ ...vendor });
+    setCurrentVendorId(vendor.id);
+    setIsEditing(true);
+    const modal = new Modal(document.getElementById("vendorModal"));
+    modal.show();
+  };
+
+  const handleView = (vendor) => {
+    setViewVendor(vendor);
+    const modal = new Modal(document.getElementById("viewVendorModal"));
+    modal.show();
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    axios
-      .post("http://localhost:5000/api/savevendor", formInputs)
-      .then(() => {
-        alert("Vendor saved successfully!");
-        fetchVendors();
-        document.getElementById("closeVendorModalBtn").click();
-      })
-      .catch((err) => {
-        console.error("Error saving vendor:", err);
-        alert("Failed to save vendor.");
-      });
+    try {
+      if (isEditing) {
+        await axios.put(
+          `http://localhost:5000/api/vendors/${currentVendorId}`,
+          form
+        );
+        toast.success("Vendor updated successfully");
+      } else {
+        await axios.post("http://localhost:5000/api/vendors", form);
+        toast.success("Vendor created successfully");
+      }
+
+      fetchVendors();
+      resetForm();
+      setCountryFilter(""); // Reset filters after save
+      setReconFilter("");
+    } catch (err) {
+      console.error("Error saving vendor", err);
+      toast.error("Error saving vendor");
+    }
   };
 
-  const handleCreateClick = () => {
-    setFormInputs({
-      vendorCode: "",
-      vendorName: "",
-      vendorType: "",
-      address: "",
+  const resetForm = () => {
+    setForm({
+      supplierNumber: "",
+      supplierName: "",
       country: "",
-      state: "",
-      gstcode: "",
+      address: "",
+      postalCode: "",
+      email: "",
+      reconAccount: "",
     });
-    new Modal(document.getElementById("createVendorModal")).show();
+    setIsEditing(false);
+    setCurrentVendorId(null);
   };
-
-  const formatLabel = (key) =>
-    key
-      .replace(/([a-z])([A-Z])/g, "$1 $2")
-      .replace(/^./, (c) => c.toUpperCase());
 
   return (
-    <div>
-      <div className="fixed-top bg-white" style={{ height: "70px", zIndex: 1000 }}>
-        <Navbar />
-      </div>
+    <>
+      <Navbar />
+      <ToastContainer position="top-center" autoClose={3000} />
+      <div className="container-fluid">
+        <div className="row">
+          <MasterDataSidebar />
+          <div className="col-md-10 p-4">
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h4>Vendor Master</h4>
+              <button className="btn btn-dark" onClick={openModal}>
+                Create Vendor
+              </button>
+            </div>
 
-      <div
-        className="position-fixed"
-        style={{
-          top: "70px",
-          bottom: 0,
-          left: 0,
-          width: "250px",
-          background: "#fff",
-          marginLeft: "15px",
-        }}
-      >
-        <MasterDataSidebar />
-      </div>
-
-      <div style={{ marginLeft: "270px", marginTop: "70px", padding: "1rem", backgroundColor: "#f9f9f9" }}>
-        <div className="container">
-          <div className="d-flex justify-content-end mb-3">
-            <button className="btn btn-primary" onClick={handleCreateClick}>
-              Create Vendor
-            </button>
-          </div>
-
-          {/* Filters */}
-          <div className="d-flex gap-3 flex-wrap mb-4">
-            {Object.keys(filters).map((field) => (
-              <div key={field}>
-                <label className="form-label">{formatLabel(field)}</label>
+            {/* Filter Section */}
+            <div className="d-flex gap-3 mb-3">
+              <div>
+                <label><strong>Country:</strong></label>
                 <select
-                  name={field}
-                  value={filters[field]}
-                  onChange={handleFilterChange}
-                  className="form-select"
+                  className="form-control"
+                  value={countryFilter}
+                  onChange={(e) => setCountryFilter(e.target.value)}
                 >
-                  <option value="">Select</option>
-                  {dropdownOptions[dropdownKeyMap[field]].map((opt, idx) => (
-                    <option key={idx} value={opt}>
-                      {opt}
+                  <option value="">--Select--</option>
+                  {countries.map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.name}
                     </option>
                   ))}
                 </select>
               </div>
-            ))}
-          </div>
-
-          {/* Table */}
-          <table className="table table-bordered">
-            <thead className="table-light">
-              <tr>
-                <th>Vendor Code</th>
-                <th>Vendor Name</th>
-                <th>Type</th>
-                <th>Country</th>
-                <th>GST Code</th>
-                <th>View</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredVendors.map((v, idx) => (
-                <tr key={idx}>
-                  <td>{v.vendorCode}</td>
-                  <td>{v.vendorName}</td>
-                  <td>{v.vendorType}</td>
-                  <td>{v.country}</td>
-                  <td>{v.gstcode}</td>
-                  <td>
-                    <button
-                      className="btn btn-info btn-sm"
-                      onClick={() => {
-                        setSelectedVendor(v);
-                        new Modal(document.getElementById("viewVendorModal")).show();
-                      }}
-                    >
-                      View
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Create Vendor Modal */}
-        <div className="modal fade" id="createVendorModal" tabIndex="-1" aria-hidden="true">
-          <div className="modal-dialog modal-lg">
-            <form className="modal-content" onSubmit={handleSubmit}>
-              <div className="modal-header">
-                <h5 className="modal-title">Create Vendor</h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  data-bs-dismiss="modal"
-                  id="closeVendorModalBtn"
-                ></button>
-              </div>
-              <div className="modal-body">
-                <div className="row g-3">
-                  {Object.entries(formInputs).map(([key, value]) => (
-                    <div className="col-md-4" key={key}>
-                      <label className="form-label">{formatLabel(key)}</label>
-                      {dropdownKeyMap[key] ? (
-                        <select
-                          name={key}
-                          className="form-select"
-                          value={value}
-                          onChange={handleInputChange}
-                          required
-                        >
-                          <option value="">Select</option>
-                          {dropdownOptions[dropdownKeyMap[key]].map((opt, idx) => (
-                            <option key={idx} value={opt}>
-                              {opt}
-                            </option>
-                          ))}
-                        </select>
-                      ) : key === "address" ? (
-                        <textarea
-                          name={key}
-                          className="form-control"
-                          value={value}
-                          onChange={handleInputChange}
-                          required
-                        />
-                      ) : (
-                        <input
-                          name={key}
-                          className="form-control"
-                          value={value}
-                          onChange={handleInputChange}
-                          required
-                        />
-                      )}
-                    </div>
+              <div>
+                <label><strong>Recon Account:</strong></label>
+                <select
+                  className="form-control"
+                  value={reconFilter}
+                  onChange={(e) => setReconFilter(e.target.value)}
+                >
+                  <option value="">--Select--</option>
+                  {reconAccounts.map((r) => (
+                    <option key={r.id} value={r.accountCode}>
+                      {r.accountCode}
+                    </option>
                   ))}
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="submit" className="btn btn-success">Save</button>
-                <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        {/* View Vendor Modal */}
-        <div className="modal fade" id="viewVendorModal" tabIndex="-1" aria-hidden="true">
-          <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-              <div className="modal-header bg-primary text-white">
-                <h5 className="modal-title">Vendor Details</h5>
-                <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-              </div>
-              <div className="modal-body">
-                {selectedVendor ? (
-                  <div className="bg-light p-3 rounded">
-                    {Object.entries(selectedVendor).map(([key, val]) => (
-                      <div className="mb-2" key={key}>
-                        <strong>{formatLabel(key)}:</strong> <span className="ms-2">{val}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p>No data to show</p>
-                )}
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </select>
               </div>
             </div>
+
+            {/* Vendor Modal */}
+            <div className="modal fade" id="vendorModal" tabIndex="-1">
+              <div className="modal-dialog modal-lg">
+                <form className="modal-content" onSubmit={handleSubmit}>
+                  <div className="modal-header">
+                    <h5 className="modal-title">
+                      {isEditing ? "Edit Vendor" : "Create Vendor"}
+                    </h5>
+                    <button
+                      type="button"
+                      className="btn-close"
+                      data-bs-dismiss="modal"
+                    ></button>
+                  </div>
+                  <div className="modal-body row g-3">
+                    <div className="col-md-6">
+                      <label>Supplier Number</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        name="supplierNumber"
+                        value={form.supplierNumber}
+                        onChange={handleChange}
+                        required
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label>Supplier Name</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        name="supplierName"
+                        value={form.supplierName}
+                        onChange={handleChange}
+                        required
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label>Country</label>
+                      <select
+                        className="form-control"
+                        name="country"
+                        value={form.country}
+                        onChange={handleChange}
+                        disabled={!!countryFilter && !isEditing}
+                        required
+                      >
+                        <option value="">Select Country</option>
+                        {countries.map((c) => (
+                          <option key={c.id} value={c.name}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-6">
+                      <label>Address</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        name="address"
+                        value={form.address}
+                        onChange={handleChange}
+                        required
+                      />
+                    </div>
+                    <div className="col-md-4">
+                      <label>Postal Code</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        name="postalCode"
+                        value={form.postalCode}
+                        onChange={handleChange}
+                      />
+                    </div>
+                    <div className="col-md-4">
+                      <label>Email</label>
+                      <input
+                        type="email"
+                        className="form-control"
+                        name="email"
+                        value={form.email}
+                        onChange={handleChange}
+                      />
+                    </div>
+                    <div className="col-md-4">
+                      <label>Recon Account</label>
+                      <select
+                        className="form-control"
+                        name="reconAccount"
+                        value={form.reconAccount}
+                        onChange={handleChange}
+                        disabled={!!reconFilter && !isEditing}
+                        required
+                      >
+                        <option value="">Select Recon Account</option>
+                        {reconAccounts.map((r) => (
+                          <option key={r.id} value={r.accountCode}>
+                            {r.accountCode}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button className="btn btn-dark" type="submit">
+                      Save
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      data-bs-dismiss="modal"
+                      type="button"
+                      onClick={resetForm}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            {/* Vendor Table */}
+            <table className="table table-bordered">
+              <thead>
+                <tr>
+                  <th>Supplier Number</th>
+                  <th>Supplier Name</th>
+                  <th>Country</th>
+                  <th>Email</th>
+                  <th>Recon Account</th>
+                  <th>View</th>
+                  <th>Edit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vendors
+                  .filter((v) => (!countryFilter || v.country === countryFilter) &&
+                                 (!reconFilter || v.reconAccount === reconFilter))
+                  .map((v) => (
+                    <tr key={v.id}>
+                      <td>{v.supplierNumber}</td>
+                      <td>{v.supplierName}</td>
+                      <td>{v.country}</td>
+                      <td>{v.email}</td>
+                      <td>{v.reconAccount}</td>
+                      <td>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleView(v)}
+                        >
+                          View
+                        </button>
+                      </td>
+                      <td>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleEdit(v)}
+                        >
+                          Update
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+
+            {/* View Vendor Modal */}
+            <div className="modal fade" id="viewVendorModal" tabIndex="-1">
+              <div className="modal-dialog modal-lg">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h5 className="modal-title">Vendor Details</h5>
+                    <button
+                      type="button"
+                      className="btn-close"
+                      data-bs-dismiss="modal"
+                    ></button>
+                  </div>
+                  <div className="modal-body">
+                    {viewVendor && (
+                      <div>
+                        <p><strong>Supplier Number:</strong> {viewVendor.supplierNumber}</p>
+                        <p><strong>Supplier Name:</strong> {viewVendor.supplierName}</p>
+                        <p><strong>Country:</strong> {viewVendor.country}</p>
+                        <p><strong>Address:</strong> {viewVendor.address}</p>
+                        <p><strong>Postal Code:</strong> {viewVendor.postalCode}</p>
+                        <p><strong>Email:</strong> {viewVendor.email}</p>
+                        <p><strong>Recon Account:</strong> {viewVendor.reconAccount}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="modal-footer">
+                    <button className="btn btn-secondary" data-bs-dismiss="modal">
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

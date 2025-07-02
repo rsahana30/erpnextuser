@@ -49,6 +49,7 @@ function Login() {
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("role", res.data.user.role);
       localStorage.setItem("userId", res.data.user.id);
+localStorage.setItem("role", res.data.user.role);
 
 
       toast.success(`Welcome ${res.data.user.name}!`, {
@@ -58,6 +59,7 @@ function Login() {
       });
 
       const selectedRoute = routeMap[form.module] || "/home";
+setTimeout(() => navigate("/dashboard"), 2500);
 
       setTimeout(() => navigate(selectedRoute), 2500);
     } catch (err) {

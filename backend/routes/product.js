@@ -129,6 +129,107 @@ router.put("/updateProduct/:productCode", (req, res) => {
 
 
 
+//vendor master 
+router.get("/vendors", (req, res) => {
+  const sql = "SELECT * FROM vendors";
+  connection.query(sql, (err, results) => {
+    if (err) return res.status(500).send("DB error");
+    res.json(results);
+  });
+});
+
+// Create new vendor
+router.post("/vendors", (req, res) => {
+  const {
+    supplierNumber,
+    supplierName,
+    country,
+    address,
+    postalCode,
+    email,
+    reconAccount,
+  } = req.body;
+
+  const sql = `
+    INSERT INTO vendors 
+    (supplierNumber, supplierName, country, address, postalCode, email, reconAccount)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`;
+
+  const values = [
+    supplierNumber,
+    supplierName,
+    country,
+    address,
+    postalCode,
+    email,
+    reconAccount,
+  ];
+
+  connection.query(sql, values, (err) => {
+    if (err) return res.status(500).send("Insert failed");
+    res.sendStatus(200);
+  });
+});
+
+// Update vendor
+router.put("/vendors/:id", (req, res) => {
+  const {
+    supplierNumber,
+    supplierName,
+    country,
+    address,
+    postalCode,
+    email,
+    reconAccount,
+  } = req.body;
+
+  const sql = `
+    UPDATE vendors SET 
+    supplierNumber = ?, supplierName = ?, country = ?, address = ?, 
+    postalCode = ?, email = ?, reconAccount = ?
+    WHERE id = ?`;
+
+  const values = [
+    supplierNumber,
+    supplierName,
+    country,
+    address,
+    postalCode,
+    email,
+    reconAccount,
+    req.params.id,
+  ];
+
+  connection.query(sql, values, (err) => {
+    if (err) return res.status(500).send("Update failed");
+    res.sendStatus(200);
+  });
+});
+
+// Get countries
+router.get("/countries", (req, res) => {
+  connection.query("SELECT * FROM countries", (err, results) => {
+    if (err) return res.status(500).send("Failed to load countries");
+    res.json(results);
+  });
+});
+
+// Get recon accounts
+router.get("/reconAccounts", (req, res) => {
+  connection.query("SELECT * FROM recon_accounts", (err, results) => {
+    if (err) return res.status(500).send("Failed to load recon accounts");
+    res.json(results);
+  });
+});
+
+
+
+
+
+
+
+
+
 
 
 

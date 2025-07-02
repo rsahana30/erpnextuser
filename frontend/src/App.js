@@ -12,6 +12,7 @@ import Location from './components/Masterdata/Location';
 import Vendor from './components/Masterdata/Vendor';
 import ApprovalMatrix from './components/Purchase/Approvematrix';
 import Purchaseorder from './components/Purchase/Purchaseorder';
+import Dashboard from './pages/Dashboard';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
         <Route path="/home" element={<Home />} />
      <Route path="/view-product" element={<ViewProduct/>} />
 
+<Route path="/dashboard" element={<Dashboard/>} />
 
 
      {/* Master data Management */}
