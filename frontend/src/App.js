@@ -13,34 +13,40 @@ import Vendor from './components/Masterdata/Vendor';
 import ApprovalMatrix from './components/Purchase/Approvematrix';
 import Purchaseorder from './components/Purchase/Purchaseorder';
 import Dashboard from './pages/Dashboard';
+import RFQ from './components/Purchase/RFQ';
+import VendorQuotation from './components/Purchase/VendorQuotation';
+import PurchaseRequisition from './components/Purchase/PurchaseRequisition';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
-       
+
         <Route path="/order" element={'/'} />
         <Route path="/logistics" element={'/'} />
-        <Route path="/purchase" element={<Purchase/>} />
+        <Route path="/purchase" element={<Purchase />} />
         <Route path="/inventory" element={'/'} />
         <Route path="/stock" element={'/'} />
         <Route path="/finance" element={'/'} />
         <Route path="/assets" element={'/'} />
         <Route path="/" element={<Signup />} />
         <Route path="/home" element={<Home />} />
-     <Route path="/view-product" element={<ViewProduct/>} />
+        <Route path="/view-product" element={<ViewProduct />} />
 
-<Route path="/dashboard" element={<Dashboard/>} />
+        <Route path="/dashboard" element={<Dashboard />} />
 
 
-     {/* Master data Management */}
-      <Route path="/master" element={<MasterData/>} />
-     <Route path='/location' element={<Location/>}/>
-     <Route path='/vendor' element={<Vendor/>}/>
-     <Route path='/approve' element={<ApprovalMatrix/>}/>
-     <Route path='/purchaseorder' element={<Purchaseorder/>}/>
-
+        {/* Master data Management */}
+        <Route path="/master" element={<MasterData />} />
+        <Route path='/location' element={<Location />} />
+        <Route path='/vendor' element={<Vendor />} />
+        <Route path='/approve' element={<ApprovalMatrix />} />
+        <Route path='/purchaseorder' element={<Purchaseorder />} />
+        <Route path='/rfq' element={<RFQ />} />
+        <Route path='/vendorquot' element={<VendorQuotation/>} />
+        <Route path='/purchasereq' element={<PurchaseRequisition/>} />
+        <Route path='/purchase/request' element={<Purchase/>}/>
 
 
       </Routes>

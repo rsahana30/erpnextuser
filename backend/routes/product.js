@@ -129,6 +129,7 @@ router.put("/updateProduct/:productCode", (req, res) => {
 
 
 
+
 //vendor master 
 router.get("/vendors", (req, res) => {
   const sql = "SELECT * FROM vendors";
@@ -221,6 +222,267 @@ router.get("/reconAccounts", (req, res) => {
     res.json(results);
   });
 });
+
+
+
+
+
+
+//rfq (request for quotation)
+router.post("/rfq", (req, res) => {
+  const {
+    productCode, productDescription, uom, quantity,
+    price, quotationDeadline, deliveryDate
+  } = req.body;
+
+  const today = new Date();
+  const getPrefix = `PR${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
+ // YYYY-MM-DD
+
+  
+
+  const countQuery = `
+    SELECT COUNT(*) as count FROM rfq_master
+    WHERE rfqNumber LIKE '${getPrefix}%'`;
+
+  connection.query(countQuery, (err, result) => {
+    if (err) {
+      console.error("Count query error:", err);
+      return res.status(500).send("Internal Server Error");
+    }
+
+    const count = result[0].count + 1;
+    const serial = String(count).padStart(4, '0');
+    const rfqNumber = `${getPrefix}${serial}`;
+
+    const insertQuery = `
+      INSERT INTO rfq_master (
+        rfqNumber, productCode, productDescription, uom, quantity,
+        price, quotationDeadline, deliveryDate
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    connection.query(insertQuery, [
+      rfqNumber, productCode, productDescription, uom,
+      quantity, price, quotationDeadline, deliveryDate
+    ], (err) => {
+      if (err) {
+        console.error("Insert error:", err);
+        return res.status(500).send("Failed to create RFQ");
+      }
+
+      res.send({ message: "RFQ Created", rfqNumber });
+    });
+  });
+});
+
+
+
+router.get("/product/:code", (req, res) => {
+  const code = req.params.code;
+  const query = "SELECT * FROM productdetails WHERE productCode = ?";
+  connection.query(query, [code], (err, result) => {
+    if (err) return res.status(500).json({ error: "Query error" });
+    if (result.length === 0) return res.status(404).json({ error: "Not found" });
+    res.json(result[0]);
+  });
+});
+
+
+// Get all RFQs
+router.get("/rfqs", (req, res) => {
+  connection.query("SELECT * FROM rfq_master", (err, results) => {
+    if (err) return res.status(500).send(err);
+    res.json(results);
+  });
+});
+
+// Delete RFQ
+router.delete("/rfq/:id", (req, res) => {
+  const id = req.params.id;
+  connection.query("DELETE FROM rfq_master WHERE id = ?", [id], (err) => {
+    if (err) return res.status(500).send(err);
+    res.sendStatus(200);
+  });
+});
+
+// Update RFQ// In routes/rfq.js or wherever you're defining your RFQ routes
+router.put("/api/rfq/:id", (req, res) => {
+  const id = req.params.id;
+  const {
+    productCode,
+    productDescription,
+    uom,
+    quantity,
+    price,
+    quotationDeadline,
+    deliveryDate
+  } = req.body;
+
+  const sql = `
+    UPDATE rfq_master SET 
+      productCode = ?, 
+      productDescription = ?, 
+      uom = ?, 
+      quantity = ?, 
+      price = ?, 
+      quotationDeadline = ?, 
+      deliveryDate = ? 
+    WHERE id = ?
+  `;
+
+  const values = [
+    productCode,
+    productDescription,
+    uom,
+    quantity,
+    price,
+    quotationDeadline,
+    deliveryDate,
+    id
+  ];
+
+  connection.query(sql, values, (err, result) => {
+    if (err) {
+      console.error("RFQ update error:", err);
+      return res.status(500).json({ error: "Update failed" });
+    }
+    res.json({ message: "RFQ updated successfully" });
+  });
+});
+
+
+
+
+
+
+
+
+
+
+//vendor quotation
+router.get("/vendorquotations", (req, res) => {
+  const sql = `SELECT * FROM vendor_quotation ORDER BY createdAt DESC`;
+
+  connection.query(sql, (err, results) => {
+    if (err) {
+      console.error("Error fetching vendor quotations:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+    res.json(results);
+  });
+});
+
+
+// Update vendor quotation status (Accept/Reject)
+router.put("/vendorquotation/:id", (req, res) => {
+  const { status } = req.body;
+  const { id } = req.params;
+
+  const sql = `UPDATE vendor_quotation SET status = ? WHERE id = ?`;
+
+  connection.query(sql, [status, id], (err, result) => {
+    if (err) {
+      console.error("Error updating vendor quotation status:", err);
+      return res.status(500).json({ error: "Update failed" });
+    }
+    res.json({ message: "Status updated successfully" });
+  });
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//purchase requisition
+router.post("/api/purchase-requisition", (req, res) => {
+  const { header, items } = req.body;
+
+  const sqlHeader = `
+    INSERT INTO purchase_requisition_header 
+    (vendor, payment_terms1, payment_terms2, location, approvers, status, pr_status, currency) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+
+  connection.query(sqlHeader, [
+    header.vendor,
+    header.paymentTerms1,
+    header.paymentTerms2,
+    header.location,
+    header.approvers,
+    header.status,
+    header.prStatus,
+    header.currency,
+  ], (err, result) => {
+    if (err) return res.status(500).send("Header Save Failed");
+
+    const requisitionId = result.insertId;
+    const values = items.map(item => [
+      requisitionId,
+      item.productCode,
+      item.productDescription,
+      item.uom,
+      item.qty,
+      item.price,
+      item.deliveryDate,
+      item.hsnCode,
+      item.taxCode,
+      item.discount,
+      item.netPrice,
+      item.deliveryCost,
+      item.actualPrice
+    ]);
+
+    const sqlItems = `
+      INSERT INTO purchase_requisition_items 
+      (requisition_id, product_code, product_description, uom, qty, price, delivery_date,
+       hsn_code, tax_code, discount, net_price, delivery_cost, actual_price) 
+      VALUES ?`;
+
+    connection.query(sqlItems, [values], (err2) => {
+      if (err2) return res.status(500).send("Items Save Failed");
+      res.send("Purchase Requisition Saved Successfully ✅");
+    });
+  });
+});
+
+// Get Tax Code by HSN
+router.get("/api/tax-code/:hsnCode", (req, res) => {
+  const { hsnCode } = req.params;
+  connection.query("SELECT tax_code FROM hsn_tax_mapping WHERE hsn_code = ?", [hsnCode], (err, result) => {
+    if (err) return res.status(500).send("DB Error");
+    if (result.length === 0) return res.status(404).send("HSN Not Found");
+    res.json({ taxCode: result[0].tax_code });
+  });
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

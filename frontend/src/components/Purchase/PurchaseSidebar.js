@@ -7,6 +7,9 @@ function PurchaseSidebar() {
   const [open, setOpen] = useState(true);
 
   const menu = [
+    { label: 'Request for Quotation', to: '/rfq' },
+     { label: 'Vendor Quotation', to: '/vendorquot' },
+     { label: 'Purchase Requisition', to: '/purchasereq' },
     { label: 'Purchase Request', to: '/purchase/request' },
     { label: 'Purchase Order', to: '/purchaseorder' },
     { label: 'Vendor Billing', to: '/purchase/billing' },
@@ -21,7 +24,7 @@ function PurchaseSidebar() {
 
   return (
     <div style={{ width: '250px', height: '100%', overflowY: 'auto' }}>
-      <h6><u>User Data Management</u></h6>
+      <h5><b>User Data Management</b></h5>
       <div
         className="d-flex justify-content-between align-items-center p-3 bg-light"
         style={{ cursor: 'pointer' }}
