@@ -15,7 +15,9 @@ app.use(express.json());
 // Routes
 app.use("/api", authRoutes);         // e.g., /api/login
 app.use("/api", productRoutes);      // e.g., /api/products
-app.use("/api", protectedRoutes);    // e.g., /api/admin-data
+app.use("/api", protectedRoutes); 
+app.use("/uploads", express.static("uploads")); // Serve uploaded files
+ // e.g., /api/admin-data
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

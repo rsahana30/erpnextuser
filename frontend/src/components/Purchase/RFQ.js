@@ -13,11 +13,22 @@ const RFQ = () => {
     quantity: "",
     price: "",
     quotationDeadline: "",
-    deliveryDate: ""
+    deliveryDate: "",
+    document: null,
+    vendorCode: "",
+    vendorName: "", // 👈 Add this line
   });
 
   const [productList, setProductList] = useState([]);
+  const [vendorList, setVendorList] = useState([]);
+
   const [rfqList, setRfqList] = useState([]);
+  useEffect(() => {
+    axios.get("http://localhost:5000/api/getvendor")
+      .then((res) => setVendorList(res.data))
+      .catch((err) => console.error("Failed to fetch vendors", err));
+  }, []);
+
 
   useEffect(() => {
     axios
@@ -30,6 +41,17 @@ const RFQ = () => {
       .then((res) => setRfqList(res.data))
       .catch((err) => console.error("Failed to fetch RFQs", err));
   }, []);
+
+  const handleVendorSelect = (e) => {
+    const selectedCode = e.target.value;
+    const selectedVendor = vendorList.find(v => v.vendorCode === selectedCode);
+    setFormData({
+      ...formData,
+      vendorCode: selectedCode,
+      vendorName: selectedVendor?.vendorName || "",
+    });
+  };
+
 
   const handleProductSelect = async (e) => {
     const selectedCode = e.target.value;
@@ -65,28 +87,31 @@ const RFQ = () => {
     }
 
     try {
-      if (isEditing) {
-        await axios.put(`http://localhost:5000/api/rfq/${formData.id}`, formData);
-        alert("RFQ Updated");
-      } else {
-        const res = await axios.post("http://localhost:5000/api/rfq", formData);
+      if (!isEditing) {
+        const data = new FormData();
+        data.append("productCode", formData.productCode);
+        data.append("productDescription", formData.productDescription);
+        data.append("uom", formData.uom);
+        data.append("quantity", formData.quantity);
+        data.append("price", formData.price);
+        data.append("quotationDeadline", formData.quotationDeadline);
+        data.append("vendorCode", formData.vendorCode);
+        data.append("vendorName", formData.vendorName);
+
+        data.append("deliveryDate", formData.deliveryDate);
+        if (formData.document) {
+          data.append("document", formData.document); // 👈 Append file
+        }
+
+        const res = await axios.post("http://localhost:5000/api/rfq", data, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
+
         alert(`RFQ Created: ${res.data.rfqNumber}`);
       }
 
-      const res = await axios.get("http://localhost:5000/api/rfqs");
-      setRfqList(res.data);
-
-      setFormData({
-        id: null,
-        rfqNumber: "",
-        productCode: "",
-        productDescription: "",
-        uom: "",
-        quantity: "",
-        price: "",
-        quotationDeadline: "",
-        deliveryDate: ""
-      });
     } catch (err) {
       console.error("RFQ operation failed", err);
       alert("Something went wrong");
@@ -125,10 +150,10 @@ const RFQ = () => {
           height: "70px",
           zIndex: 1000,
           backgroundColor: "#fff",
-         
+
         }}
       >
-        <Navbar/>
+        <Navbar />
       </div>
 
       <div
@@ -195,6 +220,35 @@ const RFQ = () => {
               <small className="text-muted">Auto-filled. Editable.</small>
             </div>
           </div>
+          <div className="row g-3 mb-3">
+            <div className="col-md-4">
+              <label className="form-label">Vendor Code <span className="text-danger">*</span></label>
+              <select
+                name="vendorCode"
+                className="form-select"
+                value={formData.vendorCode}
+                onChange={handleVendorSelect}
+              >
+                <option value="">Select</option>
+                {vendorList.map((vendor) => (
+                  <option key={vendor.id} value={vendor.vendorCode}>
+                    {vendor.vendorCode}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="col-md-4">
+              <label className="form-label">Vendor Name</label>
+              <input
+                type="text"
+                className="form-control"
+                value={formData.vendorName}
+                readOnly
+              />
+            </div>
+          </div>
+
 
           <div className="row g-3 mb-4">
             <div className="col-md-2">
@@ -218,6 +272,17 @@ const RFQ = () => {
                 onChange={handleChange}
               />
             </div>
+            <div className="col-md-4">
+              <label className="form-label">Upload Document</label>
+              <input
+                type="file"
+                className="form-control"
+                onChange={(e) =>
+                  setFormData({ ...formData, document: e.target.files[0] })
+                }
+              />
+            </div>
+
 
             <div className="col-md-4">
               <label className="form-label">Delivery Date <span className="text-danger">*</span></label>
@@ -230,6 +295,7 @@ const RFQ = () => {
               />
             </div>
           </div>
+
 
           <div className="text-center">
             <button className="btn btn-secondary px-4 me-3" onClick={handleCreate}>

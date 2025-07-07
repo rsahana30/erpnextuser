@@ -1,6 +1,19 @@
 const express = require("express");
 const router = express.Router();
+const multer = require("multer");
+const path = require("path");
 const connection = require("../db");
+
+// Setup Multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "_" + file.originalname);
+  },
+});
+const upload = multer({ storage });
 
 //this is from product config - fetching details from backend for type,group, brand, category
 router.get("/product_types", (req, res) => {
@@ -229,17 +242,16 @@ router.get("/reconAccounts", (req, res) => {
 
 
 //rfq (request for quotation)
-router.post("/rfq", (req, res) => {
+router.post("/rfq", upload.single("document"), (req, res) => {
   const {
     productCode, productDescription, uom, quantity,
     price, quotationDeadline, deliveryDate
   } = req.body;
 
+  const documentPath = req.file ? req.file.filename : null;
+
   const today = new Date();
   const getPrefix = `PR${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
- // YYYY-MM-DD
-
-  
 
   const countQuery = `
     SELECT COUNT(*) as count FROM rfq_master
@@ -258,13 +270,13 @@ router.post("/rfq", (req, res) => {
     const insertQuery = `
       INSERT INTO rfq_master (
         rfqNumber, productCode, productDescription, uom, quantity,
-        price, quotationDeadline, deliveryDate
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        price, quotationDeadline, deliveryDate, document
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     connection.query(insertQuery, [
       rfqNumber, productCode, productDescription, uom,
-      quantity, price, quotationDeadline, deliveryDate
+      quantity, price, quotationDeadline, deliveryDate, documentPath
     ], (err) => {
       if (err) {
         console.error("Insert error:", err);
@@ -275,8 +287,6 @@ router.post("/rfq", (req, res) => {
     });
   });
 });
-
-
 
 router.get("/product/:code", (req, res) => {
   const code = req.params.code;
