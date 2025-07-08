@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { toast, ToastContainer, Zoom } from 'react-toastify';
@@ -13,16 +13,29 @@ function Signup() {
     email: '',
     password: '',
     confirmPassword: '',
-    role: ''
+    role: '',
+    vendorCode: ''
   });
+
+  const [vendorOptions, setVendorOptions] = useState([]);
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
 
   const roles = [
     'Requestor', 'Approver', 'PurchaseOfficer',
     'Storekeeper', 'Vendor', 'Finance', 'Admin', 'Controller'
   ];
 
-  const [errors, setErrors] = useState({});
-  const [touched, setTouched] = useState({});
+  useEffect(() => {
+    // Fetch vendor codes on mount
+    axios.get("http://localhost:5000/api/getvendor")
+      .then(res => {
+        if (res.data && Array.isArray(res.data)) {
+          setVendorOptions(res.data);
+        }
+      })
+      .catch(err => console.error("Failed to fetch vendor codes", err));
+  }, []);
 
   const validate = (fieldValues = form) => {
     const temp = { ...errors };
@@ -53,6 +66,10 @@ function Signup() {
       temp.role = fieldValues.role ? '' : 'Select a role';
     }
 
+    if (form.role === 'Vendor' && 'vendorCode' in fieldValues) {
+      temp.vendorCode = fieldValues.vendorCode ? '' : 'Select a vendor code';
+    }
+
     setErrors({ ...temp });
   };
 
@@ -62,7 +79,8 @@ function Signup() {
     form.password &&
     form.confirmPassword &&
     form.role &&
-    Object.values(errors).every((x) => x === '');
+    (form.role !== 'Vendor' || form.vendorCode) &&
+    Object.values(errors).every(x => x === '');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -76,12 +94,15 @@ function Signup() {
     if (!isValid()) return;
 
     try {
-      const res = await axios.post('http://localhost:5000/api/signup', {
+      const payload = {
         name: form.name,
         email: form.email,
         password: form.password,
-        role: form.role
-      });
+        role: form.role,
+        ...(form.role === 'Vendor' && { vendorCode: form.vendorCode })
+      };
+
+      const res = await axios.post('http://localhost:5000/api/signup', payload);
 
       toast.success(res.data.message || "Signup successful", {
         position: "top-center",
@@ -89,7 +110,8 @@ function Signup() {
         transition: Zoom,
       });
 
-      setTimeout(() => navigate('/login'), 2500);
+      setTimeout(() => navigate(form.role === 'Vendor' ? '/vendor-login' : '/login'), 2500);
+
     } catch (err) {
       toast.error(err.response?.data?.message || "Signup failed", {
         position: "top-center",
@@ -117,12 +139,7 @@ function Signup() {
         maxWidth: "420px",
         textAlign: "center"
       }}>
-        <div style={{
-          width: "200px",
-          height: "70px",
-          margin: "0 auto 1.5rem",
-          overflow: "hidden"
-        }}>
+        <div style={{ width: "200px", height: "70px", margin: "0 auto 1.5rem", overflow: "hidden" }}>
           <img src={logo} alt="ERP Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         </div>
 
@@ -173,12 +190,29 @@ function Signup() {
             name="role"
             value={form.role}
             onChange={handleChange}
-            className={`form-control mb-4 ${touched.role && errors.role ? 'is-invalid' : ''}`}
+            className={`form-control mb-3 ${touched.role && errors.role ? 'is-invalid' : ''}`}
           >
             <option value="">Select Role</option>
             {roles.map((r, i) => <option key={i} value={r}>{r}</option>)}
           </select>
           {touched.role && errors.role && <div className="invalid-feedback">{errors.role}</div>}
+
+          {form.role === "Vendor" && (
+            <>
+              <select
+                name="vendorCode"
+                value={form.vendorCode}
+                onChange={handleChange}
+                className={`form-control mb-3 ${touched.vendorCode && errors.vendorCode ? 'is-invalid' : ''}`}
+              >
+                <option value="">Select Vendor Code</option>
+                {vendorOptions.map((v, idx) => (
+                  <option key={idx} value={v.vendorCode}>{v.vendorCode}</option>
+                ))}
+              </select>
+              {touched.vendorCode && errors.vendorCode && <div className="invalid-feedback">{errors.vendorCode}</div>}
+            </>
+          )}
 
           <button
             type="submit"
@@ -196,9 +230,9 @@ function Signup() {
           </button>
 
           <div className="text-center mt-3" style={{ fontSize: "0.9rem" }}>
-            Already have an account?
+            Already have an account?{" "}
             <Link to="/login" className="fw-semibold text-decoration-none" style={{ color: "black" }}>
-              &nbsp;Login
+              Login
             </Link>
           </div>
         </form>

@@ -1,20 +1,24 @@
+
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const path = require("path");
 const connection = require("../db");
 
-// Setup Multer for file uploads
+// Storage setup for uploaded documents
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "_" + file.originalname);
-  },
+  destination: (req, file, cb) => cb(null, "uploads/"),
+  filename: (req, file, cb) => cb(null, Date.now() + "_" + file.originalname),
 });
+
 const upload = multer({ storage });
 
+
+
+
+
+
+/////////////////////////////////////////////////////////////////////////
 //this is from product config - fetching details from backend for type,group, brand, category
 router.get("/product_types", (req, res) => {
   const sql = "SELECT * FROM product_types";
@@ -241,21 +245,65 @@ router.get("/reconAccounts", (req, res) => {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////
 //rfq (request for quotation)
 router.post("/rfq", upload.single("document"), (req, res) => {
-  const {
-    productCode, productDescription, uom, quantity,
-    price, quotationDeadline, deliveryDate
-  } = req.body;
+  const { quotationDeadline, deliveryDate } = req.body;
+
+  let products = [];
+  let vendors = [];
+  try {
+    products = JSON.parse(req.body.products || "[]");
+    vendors = JSON.parse(req.body.vendors || "[]");
+  } catch (err) {
+    return res.status(400).send("Invalid product/vendor data");
+  }
+
+  if (!quotationDeadline || !deliveryDate || products.length === 0 || vendors.length === 0) {
+    return res.status(400).send("Missing required fields");
+  }
 
   const documentPath = req.file ? req.file.filename : null;
 
   const today = new Date();
-  const getPrefix = `PR${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
+  const getPrefix = `RFQ${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
 
-  const countQuery = `
-    SELECT COUNT(*) as count FROM rfq_master
-    WHERE rfqNumber LIKE '${getPrefix}%'`;
+  const countQuery = `SELECT COUNT(*) as count FROM rfq_master WHERE rfqNumber LIKE '${getPrefix}%'`;
 
   connection.query(countQuery, (err, result) => {
     if (err) {
@@ -270,20 +318,45 @@ router.post("/rfq", upload.single("document"), (req, res) => {
     const insertQuery = `
       INSERT INTO rfq_master (
         rfqNumber, productCode, productDescription, uom, quantity,
-        price, quotationDeadline, deliveryDate, document
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        price, quotationDeadline, deliveryDate, vendorCode, vendorName, document
+      ) VALUES ?
     `;
 
-    connection.query(insertQuery, [
-      rfqNumber, productCode, productDescription, uom,
-      quantity, price, quotationDeadline, deliveryDate, documentPath
-    ], (err) => {
-      if (err) {
-        console.error("Insert error:", err);
-        return res.status(500).send("Failed to create RFQ");
+    const values = [];
+
+    products.forEach(product => {
+      vendors.forEach(vendor => {
+        values.push([
+          rfqNumber,
+          product.productCode,
+          product.productDescription,
+          product.uom,
+          product.quantity,
+          product.price,
+          quotationDeadline,
+          deliveryDate,
+          vendor.vendorCode,
+          vendor.vendorName,
+          documentPath
+        ]);
+      });
+    });
+
+    connection.query(insertQuery, [values], (err2, result2) => {
+      if (err2) {
+        console.error("Insert error:", err2);
+        return res.status(500).send("Failed to save RFQ");
       }
 
-      res.send({ message: "RFQ Created", rfqNumber });
+      // Fetch saved entries for confirmation
+      connection.query(
+        "SELECT * FROM rfq_master WHERE rfqNumber = ?",
+        [rfqNumber],
+        (fetchErr, savedRfqs) => {
+          if (fetchErr) return res.status(500).send("Saved but failed to fetch");
+          res.json({ message: "RFQ Created", rfqNumber, savedRfqs });
+        }
+      );
     });
   });
 });
@@ -307,98 +380,161 @@ router.get("/rfqs", (req, res) => {
   });
 });
 
-// Delete RFQ
-router.delete("/rfq/:id", (req, res) => {
-  const id = req.params.id;
-  connection.query("DELETE FROM rfq_master WHERE id = ?", [id], (err) => {
-    if (err) return res.status(500).send(err);
-    res.sendStatus(200);
-  });
-});
 
 // Update RFQ// In routes/rfq.js or wherever you're defining your RFQ routes
-router.put("/api/rfq/:id", (req, res) => {
+router.put("/rfq/:id", upload.single("document"), (req, res) => {
   const id = req.params.id;
-  const {
-    productCode,
-    productDescription,
-    uom,
-    quantity,
-    price,
-    quotationDeadline,
-    deliveryDate
-  } = req.body;
+  const { quotationDeadline, deliveryDate } = req.body;
+  const document = req.file ? req.file.filename : null;
+  const updatedAt = new Date();
 
-  const sql = `
-    UPDATE rfq_master SET 
-      productCode = ?, 
-      productDescription = ?, 
-      uom = ?, 
-      quantity = ?, 
-      price = ?, 
-      quotationDeadline = ?, 
-      deliveryDate = ? 
-    WHERE id = ?
-  `;
+  let sql = "UPDATE rfq_master SET quotationDeadline=?, deliveryDate=?, updatedAt=?";
+  const params = [quotationDeadline, deliveryDate, updatedAt];
 
-  const values = [
-    productCode,
-    productDescription,
-    uom,
-    quantity,
-    price,
-    quotationDeadline,
-    deliveryDate,
-    id
-  ];
+  if (document) {
+    sql += ", document=?";
+    params.push(document);
+  }
 
-  connection.query(sql, values, (err, result) => {
-    if (err) {
-      console.error("RFQ update error:", err);
-      return res.status(500).json({ error: "Update failed" });
-    }
-    res.json({ message: "RFQ updated successfully" });
+  sql += " WHERE id=?";
+  params.push(id);
+
+  connection.query(sql, params, (err, result) => {
+    if (err) return res.status(500).send(err);
+    res.send({ message: "RFQ updated successfully" });
   });
 });
 
 
 
+/////////////////////////////////////////////////////////////////////////
+//vendor response code 
+router.get("/rfq/vendor/:vendorCode", (req, res) => {
+  const { vendorCode } = req.params;
 
-
-
-
-
-
-
-//vendor quotation
-router.get("/vendorquotations", (req, res) => {
-  const sql = `SELECT * FROM vendor_quotation ORDER BY createdAt DESC`;
-
-  connection.query(sql, (err, results) => {
-    if (err) {
-      console.error("Error fetching vendor quotations:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
+  const query = "SELECT * FROM rfq_master WHERE vendorCode = ?";
+  connection.query(query, [vendorCode], (err, results) => {
+    if (err) return res.status(500).json({ message: "Database error" });
     res.json(results);
   });
 });
 
-
-// Update vendor quotation status (Accept/Reject)
-router.put("/vendorquotation/:id", (req, res) => {
-  const { status } = req.body;
-  const { id } = req.params;
-
-  const sql = `UPDATE vendor_quotation SET status = ? WHERE id = ?`;
-
-  connection.query(sql, [status, id], (err, result) => {
-    if (err) {
-      console.error("Error updating vendor quotation status:", err);
-      return res.status(500).json({ error: "Update failed" });
+router.get("/rfq-by-vendor", (req, res) => {
+  const vendorCode = req.query.vendorCode;
+  connection.query(
+    "SELECT * FROM rfq_master WHERE vendorCode = ?",
+    [vendorCode],
+    (err, results) => {
+      if (err) return res.status(500).json({ message: "DB Error" });
+      res.json(results);
     }
-    res.json({ message: "Status updated successfully" });
+  );
+});
+
+//vendor response
+router.post("/rfq-response", upload.single("document"), (req, res) => {
+  const { rfqId, vendorCode, status } = req.body;
+  const document = req.file ? req.file.filename : null;
+
+  const sql = `
+    INSERT INTO rfq_vendor_response (rfqId, vendorCode, status, document)
+    VALUES (?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      status = VALUES(status),
+      document = VALUES(document),
+      responseDate = CURRENT_TIMESTAMP
+  `;
+
+  connection.query(sql, [rfqId, vendorCode, status, document], (err) => {
+    if (err) {
+      console.error("Insert Error:", err);
+      return res.status(500).send("Failed to save response");
+    }
+    res.send("Response saved");
   });
 });
+
+
+
+
+/////////////////////////////////////////////////////////////////////
+
+//vendor quotation
+router.get("/vendor-quotation", (req, res) => {
+  const vendorCode = req.query.vendorCode;
+
+  if (!vendorCode) {
+    return res.status(400).json({ message: "Missing vendorCode" });
+  }
+
+  const query = `
+    SELECT
+  r.id AS rfqId,
+  r.rfqNumber,
+  r.productCode,
+  r.productDescription,
+  r.uom,
+  r.quantity,
+  r.price,
+  r.quotationDeadline,
+  r.deliveryDate,
+  r.vendorName,
+  r.document AS rfqDocument,
+  r.createdAt,
+  r.updatedAt,
+  rv.vendorCode,
+  rv.status AS responseStatus,
+  rv.document AS responseDocument,
+  rv.responseDate
+FROM
+  rfq_master r
+LEFT JOIN
+  rfq_vendor_response rv ON r.id = rv.rfqId
+ORDER BY
+  r.quotationDeadline ASC;
+
+  `;
+
+  connection.query(query, [vendorCode, vendorCode], (err, results) => {
+    if (err) {
+      console.error("Database error:", err);
+      return res.status(500).json({ message: "Error fetching data" });
+    }
+
+    res.json(results);
+  });
+});
+// POST /api/customer-decision
+router.post("/api/customer-decision", (req, res) => {
+  const { id, vendorCode, customerDecision } = req.body;
+  const query = `
+    UPDATE rfq_vendor_response
+    SET customerDecision = ?, customerDecisionDate = NOW()
+    WHERE id = ? AND vendorCode = ?
+  `;
+  connection.query(query, [customerDecision, id, vendorCode], (err, result) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+    res.json({ message: "Customer decision updated successfully" });
+  });
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

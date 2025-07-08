@@ -16,6 +16,9 @@ import Dashboard from './pages/Dashboard';
 import RFQ from './components/Purchase/RFQ';
 import VendorQuotation from './components/Purchase/VendorQuotation';
 import PurchaseRequisition from './components/Purchase/PurchaseRequisition';
+import VendorResponse from './components/Purchase/VendorResponse';
+import Vendorlogin from './components/Vendorlogin';
+import VendorResponseView from './components/Purchase/VendorResponseView';
 
 function App() {
   return (
@@ -34,7 +37,11 @@ function App() {
         <Route path="/home" element={<Home />} />
         <Route path="/view-product" element={<ViewProduct />} />
 
-        <Route path="/dashboard" element={<Dashboard />} />
+       <Route path="/vendor-response" element={<VendorResponse/>} />
+       <Route path="/vendor-login" element={<Vendorlogin/>} />
+        <Route path="/vendor-view" element={<VendorResponseView/>} />
+
+
 
 
         {/* Master data Management */}

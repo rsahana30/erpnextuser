@@ -5,20 +5,17 @@ import { toast, ToastContainer, Zoom } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import logo from "../assests/logo.png";
 
+// ... your imports remain the same
+
 function Login() {
   const [form, setForm] = useState({ email: "", password: "", module: "" });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const moduleOptions = [
-    "Master Data",
-    "Order Management",
-    "Logistics Execution",
-    "Purchase Management",
-    "Inventory Management",
-    "Stock Transfer",
-    "Finance Management",
-    "Assets Management"
+    "Master Data", "Order Management", "Logistics Execution",
+    "Purchase Management", "Inventory Management", "Stock Transfer",
+    "Finance Management", "Assets Management"
   ];
 
   const routeMap = {
@@ -42,26 +39,33 @@ function Login() {
 
     try {
       const res = await axios.post("http://localhost:5000/api/login", form);
+      const { user, token } = res.data;
 
+      // ❌ Block vendors here
+      if (user.role === 'Vendor') {
+        toast.error("Vendors must log in from Vendor Login Page", {
+          position: "top-center",
+          autoClose: 4000,
+          transition: Zoom,
+        });
+        return;
+      }
 
-      localStorage.setItem("userName", res.data.user.name);
+      localStorage.setItem("userName", user.name);
       localStorage.setItem("selectedModule", form.module);
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("role", res.data.user.role);
-      localStorage.setItem("userId", res.data.user.id);
-localStorage.setItem("role", res.data.user.role);
+      localStorage.setItem("token", token);
+      localStorage.setItem("role", user.role);
+      localStorage.setItem("userId", user.id);
 
-
-      toast.success(`Welcome ${res.data.user.name}!`, {
+      toast.success(`Welcome ${user.name}!`, {
         position: "top-center",
         autoClose: 3000,
         transition: Zoom,
       });
 
-      const selectedRoute = routeMap[form.module] || "/home";
-setTimeout(() => navigate("/dashboard"), 2500);
-
+      const selectedRoute = routeMap[form.module] || "/dashboard";
       setTimeout(() => navigate(selectedRoute), 2500);
+
     } catch (err) {
       toast.error("Invalid credentials. Try again!", {
         position: "top-center",
@@ -156,6 +160,14 @@ setTimeout(() => navigate("/dashboard"), 2500);
             {loading ? "Logging in..." : "Login"}
           </button>
         </form>
+
+        {/* ✅ Vendor login link */}
+        <div className="text-center mt-3" style={{ fontSize: "0.9rem" }}>
+          Are you a vendor?{" "}
+          <Link to="/vendor-login" className="fw-semibold text-decoration-none" style={{ color: "black" }}>
+            Login Here
+          </Link>
+        </div>
       </div>
       <ToastContainer />
     </div>

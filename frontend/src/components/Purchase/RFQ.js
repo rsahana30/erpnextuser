@@ -1,319 +1,214 @@
+// RFQ.js (Full Frontend with Edit Modal)
+
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "../Navbar";
 import PurchaseSidebar from "./PurchaseSidebar";
+import "bootstrap/dist/css/bootstrap.min.css";
 
 const RFQ = () => {
+  const [productList, setProductList] = useState([]);
+  const [vendorList, setVendorList] = useState([]);
+  const [productListState, setProductListState] = useState([
+    {
+      productCode: "",
+      productDescription: "",
+      uom: "",
+      price: "",
+      quantity: "",
+    },
+  ]);
+  const [vendorListState, setVendorListState] = useState([
+    {
+      vendorCode: "",
+      vendorName: "",
+    },
+  ]);
   const [formData, setFormData] = useState({
-    id: null,
-    rfqNumber: "",
-    productCode: "",
-    productDescription: "",
-    uom: "",
-    quantity: "",
-    price: "",
     quotationDeadline: "",
     deliveryDate: "",
     document: null,
-    vendorCode: "",
-    vendorName: "", // 👈 Add this line
   });
-
-  const [productList, setProductList] = useState([]);
-  const [vendorList, setVendorList] = useState([]);
-
   const [rfqList, setRfqList] = useState([]);
-  useEffect(() => {
-    axios.get("http://localhost:5000/api/getvendor")
-      .then((res) => setVendorList(res.data))
-      .catch((err) => console.error("Failed to fetch vendors", err));
-  }, []);
-
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState(null);
 
   useEffect(() => {
-    axios
-      .get("http://localhost:5000/api/products")
-      .then((res) => setProductList(res.data))
-      .catch((err) => console.error("Failed to fetch products", err));
-
-    axios
-      .get("http://localhost:5000/api/rfqs")
-      .then((res) => setRfqList(res.data))
-      .catch((err) => console.error("Failed to fetch RFQs", err));
+    axios.get("http://localhost:5000/api/products").then((res) => setProductList(res.data));
+    axios.get("http://localhost:5000/api/getvendor").then((res) => setVendorList(res.data));
+    axios.get("http://localhost:5000/api/rfqs").then((res) => setRfqList(res.data));
   }, []);
 
-  const handleVendorSelect = (e) => {
-    const selectedCode = e.target.value;
-    const selectedVendor = vendorList.find(v => v.vendorCode === selectedCode);
-    setFormData({
-      ...formData,
-      vendorCode: selectedCode,
-      vendorName: selectedVendor?.vendorName || "",
-    });
-  };
-
-
-  const handleProductSelect = async (e) => {
-    const selectedCode = e.target.value;
-    setFormData({ ...formData, productCode: selectedCode });
-
-    if (!selectedCode) return;
-
-    try {
-      const res = await axios.get(`http://localhost:5000/api/product/${selectedCode}`);
-      const product = res.data;
-
-      setFormData((prev) => ({
-        ...prev,
-        productDescription: product.description || "",
-        uom: product.uom || "",
-        price: product.unitPrice || ""
-      }));
-    } catch (err) {
-      console.error("Failed to fetch product details", err);
+  const handleProductChange = (index, field, value) => {
+    const updated = [...productListState];
+    updated[index][field] = value;
+    if (field === "productCode") {
+      const product = productList.find((p) => p.productCode === value);
+      if (product) {
+        updated[index].productDescription = product.description || "";
+        updated[index].uom = product.uom || "";
+        updated[index].price = product.unitPrice || "";
+      }
     }
+    setProductListState(updated);
   };
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleVendorChange = (index, field, value) => {
+    const updated = [...vendorListState];
+    updated[index][field] = value;
+    if (field === "vendorCode") {
+      const vendor = vendorList.find((v) => v.vendorCode === value);
+      if (vendor) {
+        updated[index].vendorName = vendor.vendorName || "";
+      }
+    }
+    setVendorListState(updated);
+  };
+
+  const addProductRow = () => {
+    setProductListState([...productListState, { productCode: "", productDescription: "", uom: "", price: "", quantity: "" }]);
+  };
+
+  const addVendorRow = () => {
+    setVendorListState([...vendorListState, { vendorCode: "", vendorName: "" }]);
   };
 
   const handleCreate = async () => {
-    const isEditing = !!formData.id;
-
-    if (!formData.productCode || !formData.quantity || !formData.quotationDeadline || !formData.deliveryDate) {
-      alert("Please fill all required fields.");
+    if (!formData.quotationDeadline || !formData.deliveryDate) {
+      alert("Quotation deadline and delivery date are required");
       return;
     }
+    const form = new FormData();
+    form.append("quotationDeadline", formData.quotationDeadline);
+    form.append("deliveryDate", formData.deliveryDate);
+    if (formData.document) form.append("document", formData.document);
+    form.append("products", JSON.stringify(productListState));
+    form.append("vendors", JSON.stringify(vendorListState));
 
     try {
-      if (!isEditing) {
-        const data = new FormData();
-        data.append("productCode", formData.productCode);
-        data.append("productDescription", formData.productDescription);
-        data.append("uom", formData.uom);
-        data.append("quantity", formData.quantity);
-        data.append("price", formData.price);
-        data.append("quotationDeadline", formData.quotationDeadline);
-        data.append("vendorCode", formData.vendorCode);
-        data.append("vendorName", formData.vendorName);
-
-        data.append("deliveryDate", formData.deliveryDate);
-        if (formData.document) {
-          data.append("document", formData.document); // 👈 Append file
-        }
-
-        const res = await axios.post("http://localhost:5000/api/rfq", data, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        });
-
-        alert(`RFQ Created: ${res.data.rfqNumber}`);
-      }
-
+      const res = await axios.post("http://localhost:5000/api/rfq", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      alert("RFQ Created: " + res.data.rfqNumber);
+      setRfqList([...rfqList, ...res.data.savedRfqs]);
     } catch (err) {
-      console.error("RFQ operation failed", err);
+      console.error("Failed to create RFQ", err);
       alert("Something went wrong");
     }
   };
 
-  const handleEdit = (rfq) => {
-    setFormData({ ...rfq });
+  const handleEditClick = (rfq) => {
+    setEditFormData({ ...rfq });
+    setEditModalOpen(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this RFQ?")) {
-      try {
-        await axios.delete(`http://localhost:5000/api/rfq/${id}`);
-        setRfqList(rfqList.filter((rfq) => rfq.id !== id));
-      } catch (err) {
-        console.error("Failed to delete RFQ", err);
-      }
-    }
-  };
+const handleUpdate = async () => {
+  const formattedDeadline = new Date(editFormData.quotationDeadline).toISOString().slice(0, 10);
+  const formattedDelivery = new Date(editFormData.deliveryDate).toISOString().slice(0, 10);
+
+  const form = new FormData();
+  form.append("quotationDeadline", formattedDeadline);
+  form.append("deliveryDate", formattedDelivery);
+  if (editFormData.document instanceof File) {
+    form.append("document", editFormData.document);
+  }
+
+  try {
+    await axios.put(`http://localhost:5000/api/rfq/${editFormData.id}`, form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    const res = await axios.get("http://localhost:5000/api/rfqs");
+    setRfqList(res.data);
+    setEditModalOpen(false);
+    alert("RFQ Updated Successfully");
+  } catch (err) {
+    console.error("Error updating RFQ", err);
+    alert("Update failed");
+  }
+};
+
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("en-GB");
+    return new Date(dateStr).toLocaleDateString("en-GB");
   };
 
   return (
     <>
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: "70px",
-          zIndex: 1000,
-          backgroundColor: "#fff",
-
-        }}
-      >
-        <Navbar />
-      </div>
-
-      <div
-        className="position-fixed border-end"
-        style={{ top: "70px", bottom: 0, left: 0, width: "250px", background: "#f8f9fa" }}
-      >
+      <Navbar />
+      <div className="d-flex">
         <PurchaseSidebar />
-      </div>
+        <div className="container mt-4">
+          <div className="card shadow-sm p-4">
+            <h4 className="text-center mb-4 text-primary">Create Request for Quotation (RFQ)</h4>
 
-      <div className="container" style={{ marginLeft: "270px", paddingTop: "100px", maxWidth: "1250px" }}>
-        <div className="card shadow border-0 p-4">
-          <h4 className="text-center mb-4 text-dark">Request for Quotation (RFQ)</h4>
+            <h6 className="text-secondary">Product Details</h6>
+            {productListState.map((row, index) => (
+              <div className="row g-3 mb-2" key={`product-${index}`}>
+                <div className="col-md-2">
+                  <select className="form-select" value={row.productCode} onChange={(e) => handleProductChange(index, "productCode", e.target.value)}>
+                    <option value="">Product Code</option>
+                    {productList.map((p) => (
+                      <option key={p.productCode} value={p.productCode}>{p.productCode}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <input className="form-control" placeholder="Description" value={row.productDescription} readOnly />
+                </div>
+                <div className="col-md-1">
+                  <input className="form-control" placeholder="UOM" value={row.uom} readOnly />
+                </div>
+                <div className="col-md-2">
+                  <input type="number" className="form-control" placeholder="Price" value={row.price} onChange={(e) => handleProductChange(index, "price", e.target.value)} />
+                </div>
+                <div className="col-md-2">
+                  <input type="number" className="form-control" placeholder="Quantity" value={row.quantity} onChange={(e) => handleProductChange(index, "quantity", e.target.value)} />
+                </div>
+              </div>
+            ))}
+            <button className="btn btn-sm btn-outline-primary mb-3" onClick={addProductRow}>+ Add Product</button>
 
-          <div className="row g-3 mb-3">
-            <div className="col-md-3">
-              <label className="form-label">Product Code <span className="text-danger">*</span></label>
-              <select
-                name="productCode"
-                className="form-select"
-                value={formData.productCode}
-                onChange={handleProductSelect}
-              >
-                <option value="">Select</option>
-                {productList.map((p) => (
-                  <option key={p.id} value={p.productCode}>
-                    {p.productCode}
-                  </option>
-                ))}
-              </select>
+            <h6 className="text-secondary">Vendor Details</h6>
+            {vendorListState.map((row, index) => (
+              <div className="row g-3 mb-2" key={`vendor-${index}`}>
+                <div className="col-md-3">
+                  <select className="form-select" value={row.vendorCode} onChange={(e) => handleVendorChange(index, "vendorCode", e.target.value)}>
+                    <option value="">Vendor Code</option>
+                    {vendorList.map((v) => (
+                      <option key={v.vendorCode} value={v.vendorCode}>{v.vendorCode}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-4">
+                  <input className="form-control" placeholder="Vendor Name" value={row.vendorName} readOnly />
+                </div>
+              </div>
+            ))}
+            <button className="btn btn-sm btn-outline-success mb-3" onClick={addVendorRow}>+ Add Vendor</button>
+
+            <h6 className="text-secondary">RFQ Metadata</h6>
+            <div className="row g-3 mb-4">
+              <div className="col-md-4">
+                <input type="date" className="form-control" value={formData.quotationDeadline} onChange={(e) => setFormData({ ...formData, quotationDeadline: e.target.value })} />
+              </div>
+              <div className="col-md-4">
+                <input type="date" className="form-control" value={formData.deliveryDate} onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })} />
+              </div>
+              <div className="col-md-4">
+                <input type="file" className="form-control" onChange={(e) => setFormData({ ...formData, document: e.target.files[0] })} />
+              </div>
             </div>
-
-            <div className="col-md-4">
-              <label className="form-label">Product Description</label>
-              <input
-                type="text"
-                name="productDescription"
-                className="form-control"
-                value={formData.productDescription}
-                readOnly
-              />
-            </div>
-
-            <div className="col-md-2">
-              <label className="form-label">UOM</label>
-              <input
-                type="text"
-                name="uom"
-                className="form-control"
-                value={formData.uom}
-                readOnly
-              />
-            </div>
-
-            <div className="col-md-3">
-              <label className="form-label">Price (Vendor Quote)</label>
-              <input
-                type="number"
-                name="price"
-                className="form-control"
-                value={formData.price}
-                onChange={handleChange}
-                min="0"
-              />
-              <small className="text-muted">Auto-filled. Editable.</small>
-            </div>
-          </div>
-          <div className="row g-3 mb-3">
-            <div className="col-md-4">
-              <label className="form-label">Vendor Code <span className="text-danger">*</span></label>
-              <select
-                name="vendorCode"
-                className="form-select"
-                value={formData.vendorCode}
-                onChange={handleVendorSelect}
-              >
-                <option value="">Select</option>
-                {vendorList.map((vendor) => (
-                  <option key={vendor.id} value={vendor.vendorCode}>
-                    {vendor.vendorCode}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="col-md-4">
-              <label className="form-label">Vendor Name</label>
-              <input
-                type="text"
-                className="form-control"
-                value={formData.vendorName}
-                readOnly
-              />
+            <div className="text-center">
+              <button className="btn btn-primary px-5" onClick={handleCreate}>Submit RFQ</button>
             </div>
           </div>
 
-
-          <div className="row g-3 mb-4">
-            <div className="col-md-2">
-              <label className="form-label">Quantity <span className="text-danger">*</span></label>
-              <input
-                type="number"
-                name="quantity"
-                className="form-control"
-                value={formData.quantity}
-                onChange={handleChange}
-                min="1"
-              />
-            </div>
-            <div className="col-md-4">
-              <label className="form-label">Quotation Deadline <span className="text-danger">*</span></label>
-              <input
-                type="date"
-                name="quotationDeadline"
-                className="form-control"
-                value={formData.quotationDeadline}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="col-md-4">
-              <label className="form-label">Upload Document</label>
-              <input
-                type="file"
-                className="form-control"
-                onChange={(e) =>
-                  setFormData({ ...formData, document: e.target.files[0] })
-                }
-              />
-            </div>
-
-
-            <div className="col-md-4">
-              <label className="form-label">Delivery Date <span className="text-danger">*</span></label>
-              <input
-                type="date"
-                name="deliveryDate"
-                className="form-control"
-                value={formData.deliveryDate}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
-
-
-          <div className="text-center">
-            <button className="btn btn-secondary px-4 me-3" onClick={handleCreate}>
-              {formData.id ? "Update RFQ" : "Create RFQ"}
-            </button>
-            <button className="btn btn-outline-secondary px-4" onClick={() => alert("Change functionality coming soon!")}>Change</button>
-          </div>
-        </div>
-
-        <div className="mt-5">
-          <h5 className="mb-3 text-center text-dark">Submitted RFQs</h5>
-
-          {rfqList.length === 0 ? (
-            <p className="text-center text-muted">No RFQs created yet.</p>
-          ) : (
+          <div className="mt-5">
+            <h5 className="mb-3 text-center text-dark">Submitted RFQs</h5>
             <div className="table-responsive">
-              <table className="table table-bordered table-striped table-hover shadow-sm">
-                <thead className="table-secondary text-center">
+              <table className="table table-bordered table-hover text-center">
+                <thead className="table-light">
                   <tr>
                     <th>#</th>
                     <th>RFQ Number</th>
@@ -321,34 +216,81 @@ const RFQ = () => {
                     <th>Description</th>
                     <th>UOM</th>
                     <th>Quantity</th>
-                    <th>Vendor Quote</th>
-                    <th>Quotation Deadline</th>
-                    <th>Delivery Date</th>
-                    <th>Actions</th>
+                    <th>Vendor</th>
+                    <th>Price</th>
+                    <th>Deadline</th>
+                    <th>Delivery</th>
+                    <th>Document</th>
                   </tr>
                 </thead>
-                <tbody className="text-center">
-                  {rfqList.map((rfq, index) => (
+                <tbody>
+                  {rfqList.map((rfq, i) => (
                     <tr key={rfq.id}>
-                      <td>{index + 1}</td>
-                      <td>{rfq.rfqNumber}</td>
+                      <td>{i + 1}</td>
+                      <td>
+                        <button className="btn btn-link p-0" onClick={() => handleEditClick(rfq)}>
+                          {rfq.rfqNumber}
+                        </button>
+                      </td>
                       <td>{rfq.productCode}</td>
                       <td>{rfq.productDescription}</td>
                       <td>{rfq.uom}</td>
                       <td>{rfq.quantity}</td>
+                      <td>{rfq.vendorName}</td>
                       <td>{rfq.price}</td>
                       <td>{formatDate(rfq.quotationDeadline)}</td>
                       <td>{formatDate(rfq.deliveryDate)}</td>
                       <td>
-                        <button className="btn btn-sm btn-outline-secondary me-2" onClick={() => handleEdit(rfq)}>Edit</button>
-                        <button className="btn btn-sm btn-outline-secondary" onClick={() => handleDelete(rfq.id)}>Delete</button>
+                        {rfq.document ? (
+                          <a href={`http://localhost:5000/uploads/${rfq.document}`} target="_blank" rel="noreferrer">View</a>
+                        ) : ("-")}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Edit Modal */}
+          {editModalOpen && editFormData && (
+            <div className="modal show fade d-block" tabIndex="-1" role="dialog">
+              <div className="modal-dialog modal-lg" role="document">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h5 className="modal-title">Edit RFQ - {editFormData.rfqNumber}</h5>
+                    <button type="button" className="btn-close" onClick={() => setEditModalOpen(false)}></button>
+                  </div>
+                  <div className="modal-body">
+                    <div className="row g-3 mb-2">
+                      <div className="col-md-6">
+                        <label>Quotation Deadline</label>
+                        <input type="date" className="form-control" value={editFormData.quotationDeadline?.substring(0, 10)} onChange={(e) => setEditFormData({ ...editFormData, quotationDeadline: e.target.value })} />
+                      </div>
+                      <div className="col-md-6">
+                        <label>Delivery Date</label>
+                        <input type="date" className="form-control" value={editFormData.deliveryDate?.substring(0, 10)} onChange={(e) => setEditFormData({ ...editFormData, deliveryDate: e.target.value })} />
+                      </div>
+                    </div>
+                    <div className="mb-3">
+                      <label>Upload Document (Optional)</label>
+                      <input type="file" className="form-control" onChange={(e) => setEditFormData({ ...editFormData, document: e.target.files[0] })} />
+                      {editFormData.document && !(editFormData.document instanceof File) && (
+                        <div className="mt-2">
+                          Current: <a href={`http://localhost:5000/uploads/${editFormData.document}`} target="_blank" rel="noreferrer">View Document</a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button className="btn btn-secondary" onClick={() => setEditModalOpen(false)}>Cancel</button>
+                    <button className="btn btn-primary" onClick={handleUpdate}>Update</button>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
+
         </div>
       </div>
     </>

@@ -8,7 +8,7 @@ require("dotenv").config();
 
 // Signup
 router.post("/signup", async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role, vendorCode } = req.body;
 
   connection.query("SELECT * FROM users WHERE email = ?", [email], async (err, result) => {
     if (err) return res.status(500).json({ message: "Database error" });
@@ -16,12 +16,26 @@ router.post("/signup", async (req, res) => {
 
     try {
       const hashedPassword = await bcrypt.hash(password, 10);
-      const insertQuery = `
-        INSERT INTO users (name, email, password, role)
-        VALUES (?, ?, ?, ?)
-      `;
-      connection.query(insertQuery, [name, email, hashedPassword, role], (err) => {
-        if (err) return res.status(500).json({ message: "Error creating user" });
+
+      let insertQuery;
+      let queryParams;
+
+      if (role === "Vendor") {
+        insertQuery = `
+          INSERT INTO users (name, email, password, role, vendorCode)
+          VALUES (?, ?, ?, ?, ?)
+        `;
+        queryParams = [name, email, hashedPassword, role, vendorCode];
+      } else {
+        insertQuery = `
+          INSERT INTO users (name, email, password, role)
+          VALUES (?, ?, ?, ?)
+        `;
+        queryParams = [name, email, hashedPassword, role];
+      }
+
+      connection.query(insertQuery, queryParams, (err2) => {
+        if (err2) return res.status(500).json({ message: "Error creating user" });
         res.json({ message: "Signup successful" });
       });
     } catch (error) {
@@ -29,6 +43,7 @@ router.post("/signup", async (req, res) => {
     }
   });
 });
+
 
 // ✅ Login
 router.post("/login", (req, res) => {
@@ -60,4 +75,36 @@ router.post("/login", (req, res) => {
     });
   });
 });
+
+
+router.post("/vendor-login", (req, res) => {
+  const { vendorCode, password } = req.body;
+
+  if (!vendorCode || !password) {
+    return res.status(400).json({ message: "Vendor code and password are required" });
+  }
+
+  connection.query(
+    "SELECT * FROM users WHERE vendorCode = ? AND role = 'Vendor'",
+    [vendorCode],
+    async (err, results) => {
+      if (err) return res.status(500).json({ message: "Database error" });
+      if (results.length === 0) return res.status(401).json({ message: "Vendor not found" });
+
+      const vendor = results[0];
+      const isMatch = await bcrypt.compare(password, vendor.password);
+
+      if (!isMatch) return res.status(401).json({ message: "Invalid password" });
+
+      const token = jwt.sign(
+        { id: vendor.id, role: vendor.role, vendorCode: vendor.vendorCode },
+        process.env.JWT_SECRET || "secret_key",
+        { expiresIn: "1d" }
+      );
+
+      res.json({ token, user: vendor });
+    }
+  );
+});
+
 module.exports = router;

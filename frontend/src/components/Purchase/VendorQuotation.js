@@ -1,146 +1,176 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import Navbar from "../Navbar";
-import PurchaseSidebar from "./PurchaseSidebar";
+import { Table, Button } from "react-bootstrap";
 
 const VendorQuotation = () => {
-  const [quotations, setQuotations] = useState([]);
-  const [statusMap, setStatusMap] = useState({});
+  const [quotationData, setQuotationData] = useState([]);
+  const vendorCode = localStorage.getItem("vendorCode");
 
   useEffect(() => {
-    fetchQuotations();
+    if (vendorCode) {
+      fetchQuotationData();
+    }
   }, []);
 
-  const fetchQuotations = async () => {
+  const fetchQuotationData = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/vendorquotations");
-      setQuotations(res.data);
-      const initialStatus = {};
-      res.data.forEach((q) => {
-        initialStatus[q.id] = q.status || "";
-      });
-      setStatusMap(initialStatus);
+      const res = await axios.get(`http://localhost:5000/api/vendor-quotation?vendorCode=${vendorCode}`);
+      setQuotationData(res.data);
     } catch (err) {
-      console.error("Failed to fetch vendor quotations", err);
+      console.error("Failed to fetch quotation data", err);
     }
   };
 
-  const handleStatusChange = (id, value) => {
-    setStatusMap((prev) => ({
-      ...prev,
-      [id]: value,
-    }));
+  const formatDate = (dateStr) => {
+    return dateStr ? new Date(dateStr).toISOString().split("T")[0] : "";
   };
 
-  const handleSaveAll = async () => {
-    const updates = Object.entries(statusMap)
-      .filter(([_, status]) => status) // Only if status is selected
-      .map(([id, status]) => ({
+  const handleCustomerAction = async (id, action) => {
+    try {
+      await axios.post("http://localhost:5000/api/customer-decision", {
         id,
-        status,
-      }));
-
-    if (updates.length === 0) {
-      return alert("Please select Accept or Reject for at least one quotation.");
-    }
-
-    try {
-      await Promise.all(
-        updates.map(({ id, status }) =>
-          axios.put(`http://localhost:5000/api/vendorquotation/${id}`, { status })
-        )
-      );
-      alert("All statuses updated successfully.");
-      fetchQuotations();
-    } catch (err) {
-      console.error("Failed to update statuses", err);
-      alert("One or more updates failed.");
+        vendorCode,
+        customerDecision: action,
+      });
+      fetchQuotationData(); // refresh
+    } catch (error) {
+      console.error(`Failed to ${action} quotation`, error);
     }
   };
+
+  const negotiated = quotationData.filter(item => item.customerDecision === "Negotiated");
 
   return (
-    <>
-       <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: "70px",
-          zIndex: 1000,
-          backgroundColor: "#fff",
-         
-        }}
-      >
-        <Navbar/>
-      </div>
+    <div className="container mt-4">
+      <h4 className="mb-4 fw-bold text-primary">Customer Review of Vendor Quotations</h4>
 
-      <div
-        className="position-fixed border-end"
-        style={{ top: "70px", bottom: 0, left: 0, width: "250px", background: "#f8f9fa" }}
-      >
-        <PurchaseSidebar />
-      </div>
-
-      <div className="container" style={{ marginLeft: "270px", paddingTop: "100px", maxWidth: "1250px" }}>
-        <div className="card shadow p-4">
-          <h4 className="text-center text-dark mb-4">Vendor Quotations</h4>
-
-          {quotations.length === 0 ? (
-            <p className="text-center text-muted">No vendor quotations available.</p>
-          ) : (
-            <>
-              <div className="table-responsive">
-                <table className="table table-bordered table-hover align-middle">
-                  <thead className="table-secondary text-center">
-                    <tr>
-                      <th>RFQ Number</th>
-                      <th>Quotation Number</th>
-                      <th>Vendor Name</th>
-                      <th>Vendor Number</th>
-                      <th>Price</th>
-                      <th>Delivery Date</th>
-                      <th>Quality</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-center">
-                    {quotations.map((q) => (
-                      <tr key={q.id}>
-                        <td>{q.rfqNumber}</td>
-                        <td>{q.quotationNumber}</td>
-                        <td>{q.vendorName}</td>
-                        <td>{q.vendorNumber}</td>
-                        <td>{q.price}</td>
-                        <td>{new Date(q.deliveryDate).toLocaleDateString("en-GB")}</td>
-                        <td>{q.quality}</td>
-                        <td>
-                          <select
-                            className="form-select"
-                            value={statusMap[q.id] || ""}
-                            onChange={(e) => handleStatusChange(q.id, e.target.value)}
-                          >
-                            <option value="">Select</option>
-                            <option value="Accepted">Accept</option>
-                            <option value="Rejected">Reject</option>
-                          </select>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="text-center mt-3">
-                <button className="btn btn-primary px-4" onClick={handleSaveAll}>
-                  Save All
-                </button>
-              </div>
-            </>
-          )}
+      {/* Negotiated Quotations Table */}
+      {negotiated.length > 0 && (
+        <div className="mb-5">
+          <h5 className="text-warning fw-bold">📝 Negotiated Quotations</h5>
+          <Table striped bordered hover responsive>
+            <thead className="table-warning text-center">
+              <tr>
+                <th>RFQ Number</th>
+                <th>Product Code</th>
+                <th>Description</th>
+                <th>Quantity</th>
+                <th>Negotiated On</th>
+              </tr>
+            </thead>
+            <tbody className="text-center">
+              {negotiated.map(item => (
+                <tr key={item.id}>
+                  <td>{item.rfqNumber}</td>
+                  <td>{item.productCode}</td>
+                  <td>{item.productDescription}</td>
+                  <td>{item.quantity}</td>
+                  <td>{formatDate(item.customerDecisionDate)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
         </div>
+      )}
+
+      {/* Main Table */}
+      <div className="table-responsive shadow-sm rounded">
+        <Table striped bordered hover responsive>
+          <thead className="table-dark text-center">
+            <tr>
+              <th>RFQ Number</th>
+              <th>Product Code</th>
+              <th>Description</th>
+              <th>UOM</th>
+              <th>Quantity</th>
+              <th>Price</th>
+              <th>Delivery Date</th>
+              <th>Deadline</th>
+              <th>Vendor Status</th>
+              <th>Response Document</th>
+              <th>Customer Decision</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody className="text-center">
+            {quotationData.length > 0 ? (
+              quotationData.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.rfqNumber}</td>
+                  <td>{item.productCode}</td>
+                  <td>{item.productDescription}</td>
+                  <td>{item.uom}</td>
+                  <td>{item.quantity}</td>
+                  <td>{item.price}</td>
+                  <td>{formatDate(item.deliveryDate)}</td>
+                  <td>{formatDate(item.quotationDeadline)}</td>
+                  <td>
+                    <span className={`badge bg-${item.responseStatus === "Accepted" ? "success" : item.responseStatus === "Rejected" ? "danger" : "secondary"}`}>
+                      {item.responseStatus || "Pending"}
+                    </span>
+                  </td>
+                  <td>
+                    {item.responseDocument ? (
+                      <a
+                        href={`http://localhost:5000/uploads/${item.responseDocument}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        View
+                      </a>
+                    ) : "-"}
+                  </td>
+                  <td>
+                    {item.customerDecision ? (
+                      <span className={`badge bg-${item.customerDecision === "Accepted"
+                        ? "success" : item.customerDecision === "Rejected"
+                        ? "danger" : item.customerDecision === "Negotiated"
+                        ? "warning text-dark" : "secondary"}`}>
+                        {item.customerDecision}
+                      </span>
+                    ) : (
+                      <span className="text-muted">Pending</span>
+                    )}
+                  </td>
+                  <td>
+                    <div className="d-flex gap-1 justify-content-center">
+                      <Button
+                        size="sm"
+                        variant="success"
+                        disabled={!!item.customerDecision}
+                        onClick={() => handleCustomerAction(item.id, "Accepted")}
+                      >
+                        Accept
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        disabled={!!item.customerDecision}
+                        onClick={() => handleCustomerAction(item.id, "Rejected")}
+                      >
+                        Reject
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="warning"
+                        disabled={!!item.customerDecision}
+                        onClick={() => handleCustomerAction(item.id, "Negotiated")}
+                      >
+                        Negotiate
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="12" className="text-muted text-center">No quotations available.</td>
+              </tr>
+            )}
+          </tbody>
+        </Table>
       </div>
-    </>
+    </div>
   );
 };
 
