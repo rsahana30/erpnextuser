@@ -573,6 +573,59 @@ router.post("/customer-decision", (req, res) => {
     res.json({ message: "Customer decision updated successfully" });
   });
 });
+///////////////////////////////////////////////////////////////////////////////////////////////
+//approval matrix
+router.post("/approval-matrix", (req, res) => {
+  const {
+    productCode, productDescription, uom,
+    approver1, approver1From, approver1To,
+    approver2, approver2From, approver2To,
+    approver3, approver3From, approver3To
+  } = req.body;
+
+  const sql = `
+    INSERT INTO approval_matrix (
+      productCode, productDescription, uom,currency,
+      approver1, approver1From, approver1To,
+      approver2, approver2From, approver2To,
+      approver3, approver3From, approver3To
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  const values = [
+    productCode, productDescription, uom,currency,
+    approver1, approver1From, approver1To,
+    approver2, approver2From, approver2To,
+    approver3, approver3From, approver3To
+  ];
+
+  connection.query(sql, values, (err, result) => {
+    if (err) {
+      console.error("Insert error:", err);
+      return res.status(500).send("Failed to save approval matrix");
+    }
+    res.send("Approval matrix saved successfully");
+  });
+});
+
+router.get("/approval-matrix", (req, res) => {
+  connection.query("SELECT * FROM approval_matrix", (err, result) => {
+    if (err) {
+      console.error("Fetch error:", err);
+      return res.status(500).send("Failed to fetch matrix");
+    }
+    res.json(result);
+  });
+});
+
+router.get("/users", (req, res) => {
+  const users = [
+    { id: 1, username: "SURE1" },
+    { id: 2, username: "MUGA1" },
+    { id: 3, username: "BABE2" },
+  ];
+  res.json(users);
+});
 
 
 
@@ -846,62 +899,62 @@ router.get("/getPurchases", (req, res) => {
 
 
 
-router.get("/getApprovers", (req, res) => {
-  const sql = "SELECT id, name FROM approvers";
-  connection.query(sql, (err, results) => {
-    if (err) {
-      console.error("Error fetching approvers:", err);
-      return res.status(500).json({ error: "Failed to fetch approvers" });
-    }
-    res.json(results);
-  });
-});
+// router.get("/getApprovers", (req, res) => {
+//   const sql = "SELECT id, name FROM approvers";
+//   connection.query(sql, (err, results) => {
+//     if (err) {
+//       console.error("Error fetching approvers:", err);
+//       return res.status(500).json({ error: "Failed to fetch approvers" });
+//     }
+//     res.json(results);
+//   });
+// });
 
-// ✅ Save Approval Matrix
-router.post("/saveApprovalMatrix", (req, res) => {
-  const {
-    productGroup, controller, location, department,
-    rangeFrom, rangeTo, currency, approvalName
-  } = req.body;
+// // ✅ Save Approval Matrix
+// router.post("/saveApprovalMatrix", (req, res) => {
+//   const {
+//     productGroup, controller, location, department,
+//     rangeFrom, rangeTo, currency, approvalName
+//   } = req.body;
 
-  const sql = `INSERT INTO approval_matrix 
-    (productGroup, controller, location, department, rangeFrom, rangeTo, currency, approvalName)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+//   const sql = `INSERT INTO approval_matrix 
+//     (productGroup, controller, location, department, rangeFrom, rangeTo, currency, approvalName)
+//     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
-  connection.query(sql, [productGroup, controller, location, department, rangeFrom, rangeTo, currency, approvalName],
-    (err, result) => {
-      if (err) {
-        console.error("Error inserting matrix:", err);
-        return res.status(500).json({ error: "Failed to save matrix" });
-      }
-      res.json({ success: true, id: result.insertId });
-    });
-});
+//   connection.query(sql, [productGroup, controller, location, department, rangeFrom, rangeTo, currency, approvalName],
+//     (err, result) => {
+//       if (err) {
+//         console.error("Error inserting matrix:", err);
+//         return res.status(500).json({ error: "Failed to save matrix" });
+//       }
+//       res.json({ success: true, id: result.insertId });
+//     });
+// });
 
-// ✅ Get Approval Matrix list
-router.get("/getApprovalMatrix", (req, res) => {
-  const sql = "SELECT * FROM approval_matrix";
-  connection.query(sql, (err, rows) => {
-    if (err) {
-      console.error("Error fetching matrix:", err);
-      return res.status(500).json({ error: "Failed to fetch matrix" });
-    }
-    res.json(rows);
-  });
-});
+// // ✅ Get Approval Matrix list
+// router.get("/getApprovalMatrix", (req, res) => {
+//   const sql = "SELECT * FROM approval_matrix";
+//   connection.query(sql, (err, rows) => {
+//     if (err) {
+//       console.error("Error fetching matrix:", err);
+//       return res.status(500).json({ error: "Failed to fetch matrix" });
+//     }
+//     res.json(rows);
+//   });
+// });
 
-const verifyToken = (req, res, next) => {
-  const token = req.headers["authorization"];
-  if (!token) return res.status(403).json({ message: "Token required" });
+// const verifyToken = (req, res, next) => {
+//   const token = req.headers["authorization"];
+//   if (!token) return res.status(403).json({ message: "Token required" });
 
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // attach user info to request
-    next();
-  } catch (err) {
-    res.status(401).json({ message: "Invalid token" });
-  }
-};
+//   try {
+//     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+//     req.user = decoded; // attach user info to request
+//     next();
+//   } catch (err) {
+//     res.status(401).json({ message: "Invalid token" });
+//   }
+// };
 // router.get("/getAssignedOrders", verifyToken, (req, res) => {
 //   const approverName = req.user.name;
 
@@ -962,17 +1015,17 @@ const verifyToken = (req, res, next) => {
 //     res.json({ message: "Purchase Order status updated" });
 //   });
 // });
-router.get("/getApprovalMatrix", (req, res) => {
-  const query = `SELECT * FROM approval_matrix`;
+// router.get("/getApprovalMatrix", (req, res) => {
+//   const query = `SELECT * FROM approval_matrix`;
 
-  connection.query(query, (err, results) => {
-    if (err) {
-      console.error("Error fetching matrix:", err);
-      return res.status(500).json({ error: "Failed to fetch matrix" });
-    }
-    res.json(results);
-  });
-});
+//   connection.query(query, (err, results) => {
+//     if (err) {
+//       console.error("Error fetching matrix:", err);
+//       return res.status(500).json({ error: "Failed to fetch matrix" });
+//     }
+//     res.json(results);
+//   });
+// });
 
 
 

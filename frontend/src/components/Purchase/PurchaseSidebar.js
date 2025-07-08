@@ -26,7 +26,7 @@ function PurchaseSidebar() {
 
   return (
     <div style={{ width: '250px', height: '100%', overflowY: 'auto' }}>
-      <h5><b>User Data Management</b></h5>
+      <h6><b>User Data Management</b></h6>
       <div
         className="d-flex justify-content-between align-items-center p-3 bg-light"
         style={{ cursor: 'pointer' }}

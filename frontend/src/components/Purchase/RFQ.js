@@ -138,9 +138,9 @@ const handleUpdate = async () => {
       <Navbar />
       <div className="d-flex">
         <PurchaseSidebar />
-        <div className="container mt-4">
+        <div className="container mt-4 ">
           <div className="card shadow-sm p-4">
-            <h4 className="text-center mb-4 text-primary">Create Request for Quotation (RFQ)</h4>
+            <h4 className="text-center mb-4 text-dark">Create Request for Quotation (RFQ)</h4>
 
             <h6 className="text-secondary">Product Details</h6>
             {productListState.map((row, index) => (
@@ -167,7 +167,7 @@ const handleUpdate = async () => {
                 </div>
               </div>
             ))}
-            <button className="btn btn-sm btn-outline-primary mb-3" onClick={addProductRow}>+ Add Product</button>
+            <button className="btn btn-sm btn-outline-secondary mb-3" onClick={addProductRow}>+ Add Product</button>
 
             <h6 className="text-secondary">Vendor Details</h6>
             {vendorListState.map((row, index) => (
@@ -185,7 +185,7 @@ const handleUpdate = async () => {
                 </div>
               </div>
             ))}
-            <button className="btn btn-sm btn-outline-success mb-3" onClick={addVendorRow}>+ Add Vendor</button>
+            <button className="btn btn-sm btn-outline-secondary mb-3" onClick={addVendorRow}>+ Add Vendor</button>
 
             <h6 className="text-secondary">RFQ Metadata</h6>
             <div className="row g-3 mb-4">
@@ -200,7 +200,7 @@ const handleUpdate = async () => {
               </div>
             </div>
             <div className="text-center">
-              <button className="btn btn-primary px-5" onClick={handleCreate}>Submit RFQ</button>
+              <button className="btn btn-dark px-5" onClick={handleCreate}>Submit RFQ</button>
             </div>
           </div>
 
