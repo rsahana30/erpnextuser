@@ -455,11 +455,57 @@ router.post("/rfq-response", upload.single("document"), (req, res) => {
 });
 
 
+/////////////////////////////////////////////
+//vendor response view 
+router.get("/vendor-response-view", (req, res) => {
+  const vendorCode = req.query.vendorCode;
+
+  if (!vendorCode) {
+    return res.status(400).json({ message: "Missing vendorCode" });
+  }
+
+  const query = `
+    SELECT
+      rv.id AS id,
+      r.rfqNumber,
+      r.productCode,
+      r.productDescription,
+      r.uom,
+      r.quantity,
+      r.price,
+      r.quotationDeadline,
+      r.deliveryDate,
+      r.vendorName,
+      r.document AS rfqDocument,
+      r.createdAt,
+      r.updatedAt,
+      rv.vendorCode,
+      rv.status AS responseStatus,
+      rv.document AS responseDocument,
+      rv.responseDate
+    FROM
+      rfq_master r
+    LEFT JOIN
+      rfq_vendor_response rv ON r.id = rv.rfqId AND rv.vendorCode = ?
+    ORDER BY
+      r.quotationDeadline ASC;
+  `;
+
+  connection.query(query, [vendorCode], (err, results) => {
+    if (err) {
+      console.error("Database error:", err);
+      return res.status(500).json({ message: "Error fetching data" });
+    }
+
+    res.json(results);
+  });
+});
 
 
 /////////////////////////////////////////////////////////////////////
 
 //vendor quotation
+// GET /api/vendor-quotation
 router.get("/vendor-quotation", (req, res) => {
   const vendorCode = req.query.vendorCode;
 
@@ -469,33 +515,36 @@ router.get("/vendor-quotation", (req, res) => {
 
   const query = `
     SELECT
-  r.id AS rfqId,
-  r.rfqNumber,
-  r.productCode,
-  r.productDescription,
-  r.uom,
-  r.quantity,
-  r.price,
-  r.quotationDeadline,
-  r.deliveryDate,
-  r.vendorName,
-  r.document AS rfqDocument,
-  r.createdAt,
-  r.updatedAt,
-  rv.vendorCode,
-  rv.status AS responseStatus,
-  rv.document AS responseDocument,
-  rv.responseDate
-FROM
-  rfq_master r
-LEFT JOIN
-  rfq_vendor_response rv ON r.id = rv.rfqId
-ORDER BY
-  r.quotationDeadline ASC;
-
+      rv.id AS responseId,                    -- ✅ responseId from rfq_vendor_response
+      r.rfqNumber,
+      r.productCode,
+      r.productDescription,
+      r.uom,
+      r.quantity,
+      r.price,
+      r.quotationDeadline,
+      r.deliveryDate,
+      r.vendorName,
+      r.document AS rfqDocument,
+      r.createdAt,
+      r.updatedAt,
+      rv.vendorCode,
+      rv.status AS responseStatus,
+      rv.document AS responseDocument,
+      rv.responseDate,
+      rv.customerDecision,
+      rv.customerDecisionDate
+    FROM
+      rfq_master r
+    LEFT JOIN
+      rfq_vendor_response rv ON r.id = rv.rfqId AND rv.vendorCode = ?
+    WHERE
+      rv.status = 'Accepted'
+    ORDER BY
+      r.quotationDeadline ASC;
   `;
 
-  connection.query(query, [vendorCode, vendorCode], (err, results) => {
+  connection.query(query, [vendorCode], (err, results) => {
     if (err) {
       console.error("Database error:", err);
       return res.status(500).json({ message: "Error fetching data" });
@@ -504,19 +553,27 @@ ORDER BY
     res.json(results);
   });
 });
+
 // POST /api/customer-decision
-router.post("/api/customer-decision", (req, res) => {
+router.post("/customer-decision", (req, res) => {
   const { id, vendorCode, customerDecision } = req.body;
+
   const query = `
     UPDATE rfq_vendor_response
     SET customerDecision = ?, customerDecisionDate = NOW()
     WHERE id = ? AND vendorCode = ?
   `;
+
   connection.query(query, [customerDecision, id, vendorCode], (err, result) => {
-    if (err) return res.status(500).json({ error: "Database error" });
+    if (err) {
+      console.error("Database error:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+
     res.json({ message: "Customer decision updated successfully" });
   });
 });
+
 
 
 

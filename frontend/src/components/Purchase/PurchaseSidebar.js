@@ -9,7 +9,7 @@ function PurchaseSidebar() {
   const menu = [
     { label: 'Request for Quotation', to: '/rfq' },
      { label: 'Vendor Quotation', to: '/vendorquot' },
-     { label: 'Vendor Response', to: '/vendor-response' },
+    //  { label: 'Vendor Response', to: '/vendor-response' },
      { label: 'Vendor View Response', to: '/vendor-view' },
      { label: 'Purchase Requisition', to: '/purchasereq' },
     { label: 'Purchase Request', to: '/purchase/request' },
