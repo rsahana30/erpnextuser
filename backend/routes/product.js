@@ -645,37 +645,46 @@ router.post("/customer-decision", (req, res) => {
 //approval matrix
 router.post("/approval-matrix", (req, res) => {
   const {
-    productCode, productDescription, uom,
+    productCode, productDescription, uom, currency,
     approver1, approver1From, approver1To,
     approver2, approver2From, approver2To,
-    approver3, approver3From, approver3To
+    approver3, approver3From, approver3To,
+    useDefault // New field
   } = req.body;
 
-  const sql = `
-    INSERT INTO approval_matrix (
-      productCode, productDescription, uom,currency,
-      approver1, approver1From, approver1To,
-      approver2, approver2From, approver2To,
-      approver3, approver3From, approver3To
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `;
+  const parseOrNull = (val) => {
+    const n = parseFloat(val);
+    return isNaN(n) ? null : n;
+  };
 
-  const values = [
-    productCode, productDescription, uom,currency,
+  const sql = `INSERT INTO approval_matrix (
+    productCode, productDescription, uom, currency,
     approver1, approver1From, approver1To,
     approver2, approver2From, approver2To,
-    approver3, approver3From, approver3To
+    approver3, approver3From, approver3To,
+    useDefault
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+  const values = [
+    productCode, productDescription, uom, currency,
+    approver1, parseOrNull(approver1From), parseOrNull(approver1To),
+    approver2, parseOrNull(approver2From), parseOrNull(approver2To),
+    approver3, parseOrNull(approver3From), parseOrNull(approver3To),
+    useDefault ? 1 : 0
   ];
 
   connection.query(sql, values, (err, result) => {
     if (err) {
-      console.error("Insert error:", err);
+      console.error("Insert error:", err.message);
       return res.status(500).send("Failed to save approval matrix");
     }
     res.send("Approval matrix saved successfully");
   });
 });
 
+
+
+// Fetch Approval Matrix
 router.get("/approval-matrix", (req, res) => {
   connection.query("SELECT * FROM approval_matrix", (err, result) => {
     if (err) {
@@ -686,14 +695,19 @@ router.get("/approval-matrix", (req, res) => {
   });
 });
 
+// Hardcoded Users
 router.get("/users", (req, res) => {
   const users = [
-    { id: 1, username: "SURE1" },
-    { id: 2, username: "MUGA1" },
-    { id: 3, username: "BABE2" },
+    { id: 1, username: "Rahul" },
+    { id: 2, username: "Glenna" },
+    { id: 3, username: "Sakshi" },
+    { id: 4, username: "Sampath" },
+    { id: 5, username: "Nikitha" },
+    { id: 6, username: "Riya" }
   ];
   res.json(users);
 });
+
 
 
 

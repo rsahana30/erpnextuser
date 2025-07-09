@@ -15,7 +15,8 @@ const ApprovalMatrix = () => {
     approver2To: "",
     approver3: "",
     approver3From: "",
-    approver3To: ""
+    approver3To: "",
+    useDefault: false
   });
 
   const [products, setProducts] = useState([]);
@@ -37,7 +38,9 @@ const ApprovalMatrix = () => {
   }, []);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value, type, checked } = e.target;
+    const val = type === "checkbox" ? checked : value;
+    setForm({ ...form, [name]: val });
   };
 
   const handleProductSelect = (e) => {
@@ -54,7 +57,25 @@ const ApprovalMatrix = () => {
   };
 
   const handleSubmit = () => {
-    axios.post("http://localhost:5000/api/approval-matrix", form)
+    if (!form.productCode) {
+      return alert("Please select a product.");
+    }
+
+    const payload = { ...form };
+
+    if (form.useDefault) {
+      payload.approver1 = "Rahul";
+      payload.approver1From = 0;
+      payload.approver1To = 5000;
+      payload.approver2 = "Glenna";
+      payload.approver2From = 0;
+      payload.approver2To = 20000;
+      payload.approver3 = "Sakshi";
+      payload.approver3From = 0;
+      payload.approver3To = 100000;
+    }
+
+    axios.post("http://localhost:5000/api/approval-matrix", payload)
       .then(() => {
         alert("Matrix saved successfully");
         window.location.reload();
@@ -68,6 +89,37 @@ const ApprovalMatrix = () => {
   return (
     <div className="container mt-5">
       <h3 className="text-center mb-4">Approval Matrix Configuration</h3>
+
+      {/* Default Approvers Summary */}
+      <div className="card mb-4">
+        <div className="card-header fw-bold bg-secondary text-dark">Default Approver Matrix</div>
+        <div className="card-body">
+          <table className="table table-bordered mb-0">
+            <thead className="table-light">
+              <tr>
+                <th>Approver</th>
+                <th>Range From</th>
+                <th>Range To</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Rahul</td><td>0</td><td>5,000</td></tr>
+              <tr><td>Glenna</td><td>0</td><td>20,000</td></tr>
+              <tr><td>Sakshi</td><td>0</td><td>100,000</td></tr>
+            </tbody>
+          </table>
+          <div className="form-check mt-2">
+            <input
+              className="form-check-input"
+              type="checkbox"
+              name="useDefault"
+              checked={form.useDefault}
+              onChange={handleChange}
+            />
+            <label className="form-check-label">Use Default Approvers</label>
+          </div>
+        </div>
+      </div>
 
       {/* Product Info */}
       <div className="card mb-4">
@@ -83,96 +135,77 @@ const ApprovalMatrix = () => {
             >
               <option value="">Select Product</option>
               {products.map((p, idx) => (
-                <option key={idx} value={p.productCode}>
-                  {p.productCode}
-                </option>
+                <option key={idx} value={p.productCode}>{p.productCode}</option>
               ))}
             </select>
           </div>
           <div className="col-md-4">
             <label className="form-label">Product Description</label>
-            <input
-              className="form-control"
-              name="productDescription"
-              value={form.productDescription}
-              readOnly
-            />
+            <input className="form-control" name="productDescription" value={form.productDescription} readOnly />
           </div>
           <div className="col-md-2">
             <label className="form-label">UOM</label>
-            <input
-              className="form-control"
-              name="uom"
-              value={form.uom}
-              readOnly
-            />
+            <input className="form-control" name="uom" value={form.uom} readOnly />
           </div>
           <div className="col-md-2">
             <label className="form-label">Currency</label>
-            <input
-              className="form-control"
-              name="currency"
-              value={form.currency}
-              readOnly
-            />
+            <input className="form-control" name="currency" value={form.currency} readOnly />
           </div>
         </div>
       </div>
 
       {/* Approver Levels */}
-      <div className="card mb-4">
-        <div className="card-header fw-bold">Set Approvers & Ranges</div>
-        <div className="card-body">
-          {[1, 2, 3].map((num) => (
-            <div className="row g-3 align-items-end mb-3" key={num}>
-              <div className="col-md-4">
-                <label className="form-label">Approver {num}</label>
-                <select
-                  className="form-select"
-                  name={`approver${num}`}
-                  value={form[`approver${num}`]}
-                  onChange={handleChange}
-                >
-                  <option value="">Select Approver</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.username}>
-                      {user.username}
-                    </option>
-                  ))}
-                </select>
+      {!form.useDefault && (
+        <div className="card mb-4">
+          <div className="card-header fw-bold">Set Approvers & Ranges</div>
+          <div className="card-body">
+            {[1, 2, 3].map((num) => (
+              <div className="row g-3 align-items-end mb-3" key={num}>
+                <div className="col-md-4">
+                  <label className="form-label">Approver {num}</label>
+                  <select
+                    className="form-select"
+                    name={`approver${num}`}
+                    value={form[`approver${num}`]}
+                    onChange={handleChange}
+                  >
+                    <option value="">Select Approver</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.username}>{user.username}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-4">
+                  <label className="form-label">Range From</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    name={`approver${num}From`}
+                    value={form[`approver${num}From`]}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="col-md-4">
+                  <label className="form-label">Range To</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    name={`approver${num}To`}
+                    value={form[`approver${num}To`]}
+                    onChange={handleChange}
+                  />
+                </div>
               </div>
-              <div className="col-md-4">
-                <label className="form-label">Range From</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  name={`approver${num}From`}
-                  value={form[`approver${num}From`]}
-                  onChange={handleChange}
-                />
-              </div>
-              <div className="col-md-4">
-                <label className="form-label">Range To</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  name={`approver${num}To`}
-                  value={form[`approver${num}To`]}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="text-end mb-5">
-        <button className="btn btn-success px-4" onClick={handleSubmit}>
-          Save Matrix
-        </button>
+        <button className="btn btn-dark px-4" onClick={handleSubmit}>Save Matrix</button>
       </div>
 
-      {/* Approval Matrix Table */}
+      {/* Matrix Table */}
       <div className="card">
         <div className="card-header fw-bold">Existing Approval Matrix</div>
         <div className="card-body table-responsive">
@@ -208,9 +241,7 @@ const ApprovalMatrix = () => {
               ))}
               {matrixList.length === 0 && (
                 <tr>
-                  <td colSpan="10" className="text-center text-muted">
-                    No entries yet.
-                  </td>
+                  <td colSpan="10" className="text-center text-muted">No entries yet.</td>
                 </tr>
               )}
             </tbody>
