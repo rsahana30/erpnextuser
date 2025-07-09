@@ -56,6 +56,8 @@ function Login() {
       localStorage.setItem("token", token);
       localStorage.setItem("role", user.role);
       localStorage.setItem("userId", user.id);
+      const vendorCode = localStorage.getItem("vendorCode");
+
 
       toast.success(`Welcome ${user.name}!`, {
         position: "top-center",

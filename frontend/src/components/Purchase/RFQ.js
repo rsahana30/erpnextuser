@@ -179,7 +179,7 @@ const RFQ = () => {
               </div>
             ))}
             <div className="text-end mb-3">
-              <button className="btn btn-sm btn-outline-primary" onClick={addProductRow}>+ Add Product</button>
+              <button className="btn btn-sm btn-outline-secondary" onClick={addProductRow}>+ Add Product</button>
             </div>
 
             {/* Vendor Section */}
@@ -203,7 +203,7 @@ const RFQ = () => {
               </div>
             ))}
             <div className="text-end mb-3">
-              <button className="btn btn-sm btn-outline-primary" onClick={addVendorRow}>+ Add Vendor</button>
+              <button className="btn btn-sm btn-outline-secondary" onClick={addVendorRow}>+ Add Vendor</button>
             </div>
 
             {/* RFQ Metadata */}
@@ -303,7 +303,7 @@ const RFQ = () => {
                   </div>
                   <div className="modal-footer">
                     <button className="btn btn-secondary" onClick={() => setEditModalOpen(false)}>Cancel</button>
-                    <button className="btn btn-primary" onClick={handleUpdate}>Update</button>
+                    <button className="btn btn-dark" onClick={handleUpdate}>Update</button>
                   </div>
                 </div>
               </div>

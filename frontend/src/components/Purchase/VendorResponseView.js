@@ -6,17 +6,14 @@ import PurchaseSidebar from "./PurchaseSidebar";
 
 const VendorResponseView = () => {
   const [quotationData, setQuotationData] = useState([]);
-  const vendorCode = localStorage.getItem("vendorCode");
 
   useEffect(() => {
-    if (vendorCode) {
-      fetchQuotationData();
-    }
+    fetchQuotationData();
   }, []);
 
   const fetchQuotationData = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/vendor-response-view?vendorCode=${vendorCode}`);
+      const res = await axios.get("http://localhost:5000/api/vendor-response-view");
       setQuotationData(res.data);
     } catch (err) {
       console.error("Failed to fetch quotation data", err);
@@ -27,81 +24,77 @@ const VendorResponseView = () => {
     return dateStr ? new Date(dateStr).toISOString().split("T")[0] : "-";
   };
 
+  const renderStatusBadge = (status) => {
+    const color =
+      status === "Accepted"
+        ? "success"
+        : status === "Rejected"
+        ? "danger"
+        : "secondary";
+
+    return (
+      <span className={`badge bg-${color} px-3 py-2 rounded-pill`}>
+        {status || "Pending"}
+      </span>
+    );
+  };
+
   return (
     <>
       <Navbar />
       <div className="d-flex">
         <PurchaseSidebar />
         <div className="container mt-4">
-          <h4 className="mb-3 fw-bold text-primary">Vendor Quotation Summary</h4>
+          <div className="card shadow-sm p-4">
+            <h4 className="mb-4 fw-bold text-dark text-center">Vendor Quotation Summary</h4>
 
-          <div className="table-responsive shadow-sm rounded">
-            <Table striped bordered hover responsive>
-              <thead className="table-dark text-center">
-                <tr>
-                  <th>RFQ Number</th>
-                  <th>Product Code</th>
-                  <th>Description</th>
-                  <th>UOM</th>
-                  <th>Quantity</th>
-                  <th>Price</th>
-                  <th>Delivery Date</th>
-                  <th>Deadline</th>
-                  <th>Response Status</th>
-                  <th>Response Date</th>
-                  <th>Response Document</th>
-                </tr>
-              </thead>
-              <tbody className="text-center">
-                {quotationData.length > 0 ? (
-                  quotationData.map((item) => (
-                    <tr key={item.id}>
-                      <td>{item.rfqNumber}</td>
-                      <td>{item.productCode}</td>
-                      <td>{item.productDescription}</td>
-                      <td>{item.uom}</td>
-                      <td>{item.quantity}</td>
-                      <td>{item.price}</td>
-                      <td>{formatDate(item.deliveryDate)}</td>
-                      <td>{formatDate(item.quotationDeadline)}</td>
-                      <td>
-                        <span
-                          className={`badge bg-${
-                            item.responseStatus === "Accepted"
-                              ? "success"
-                              : item.responseStatus === "Rejected"
-                              ? "danger"
-                              : "secondary"
-                          }`}
-                        >
-                          {item.responseStatus || "Pending"}
-                        </span>
-                      </td>
-                      <td>{formatDate(item.responseDate)}</td>
-                      <td>
-                        {item.responseDocument ? (
-                          <a
-                            href={`http://localhost:5000/uploads/${item.responseDocument}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            View
-                          </a>
-                        ) : (
-                          "-"
-                        )}
+            <div className="table-responsive">
+              <Table bordered hover responsive className="align-middle text-center">
+                <thead className="table-secondary">
+                  <tr>
+                    <th>RFQ No</th>
+                    <th>Product Code</th>
+                    <th>Vendor Code</th>
+                    <th>Status</th>
+                    <th>Response Date</th>
+                    <th>Document</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quotationData.length > 0 ? (
+                    quotationData.map((item) => (
+                      <tr key={item.id}>
+                        <td>{item.rfqNumber}</td>
+                        <td>{item.productCode}</td>
+                        <td>{item.vendorCode}</td>
+                        <td>{renderStatusBadge(item.responseStatus)}</td>
+                        <td>{formatDate(item.responseDate)}</td>
+                        <td>
+                          {item.responseDocument ? (
+                            <a
+                              href={`http://localhost:5000/uploads/${item.responseDocument}`}
+                              className="btn btn-sm btn-outline-secondary"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              View
+                            </a>
+                          ) : (
+                            <span className="text-muted">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="6" className="text-muted text-center py-3">
+                        No vendor responses available.
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="11" className="text-muted text-center">
-                      No vendor quotations available.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </Table>
+                  )}
+                </tbody>
+              </Table>
+            </div>
           </div>
         </div>
       </div>

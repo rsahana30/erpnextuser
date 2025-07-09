@@ -30,6 +30,8 @@ function VendorLogin() {
       localStorage.setItem("token", token);
       localStorage.setItem("vendorCode", user.vendorCode);
       localStorage.setItem("userName", user.name);
+     localStorage.getItem("vendorCode");
+
 
       toast.success(`Welcome ${user.name}`, {
         position: "top-center",

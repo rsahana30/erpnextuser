@@ -4,8 +4,6 @@ import { toast, ToastContainer, Zoom } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import "react-toastify/dist/ReactToastify.css";
 import "bootstrap/dist/css/bootstrap.min.css";
-import Navbar from "../Navbar";
-import PurchaseSidebar from "./PurchaseSidebar";
 
 function VendorResponse() {
   const [rfqs, setRfqs] = useState([]);
@@ -33,8 +31,7 @@ function VendorResponse() {
 
   const formatDate = (dateString) => {
     if (!dateString) return "";
-    const date = new Date(dateString);
-    return date.toISOString().split("T")[0];
+    return new Date(dateString).toISOString().split("T")[0];
   };
 
   const handleFileChange = (e, rfqId) => {
@@ -52,15 +49,8 @@ function VendorResponse() {
 
     try {
       await axios.post("http://localhost:5000/api/rfq-response", formData);
-
-      // Update status locally
-      setRfqs((prevRfqs) =>
-        prevRfqs.map((rfq) =>
-          rfq.id === rfqId ? { ...rfq, responseStatus: status } : rfq
-        )
-      );
-
       toast.success(`RFQ ${status}ed successfully`, { transition: Zoom });
+      fetchRfqs();
     } catch (err) {
       toast.error("Failed to submit response", { transition: Zoom });
     }
@@ -73,33 +63,33 @@ function VendorResponse() {
 
   return (
     <>
-      <Navbar />
-      <div className="d-flex">
-        <PurchaseSidebar />
-        <div className="container mt-4">
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <h3 className="fw-bold">Welcome, Vendor {vendorCode}</h3>
-            <button onClick={handleLogout} className="btn btn-danger">Logout</button>
-          </div>
+      <div className="container mt-4">
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <h4 className="fw-bold text-secondary">Welcome, Vendor <span className="text-dark">{vendorCode}</span></h4>
+          <button onClick={handleLogout} className="btn btn-outline-dark">Logout</button>
+        </div>
 
-          <div className="table-responsive shadow-sm rounded">
-            <table className="table table-striped table-hover table-bordered align-middle">
-              <thead className="table-dark text-center">
+        <div className="card shadow-sm p-3 mb-5 bg-body rounded">
+          <h5 className="mb-3 text-center text-dark">Assigned RFQs</h5>
+
+          <div className="table-responsive">
+            <table className="table table-bordered table-hover text-center align-middle">
+              <thead className="table-light">
                 <tr>
-                  <th>RFQ Number</th>
+                  <th>RFQ No</th>
                   <th>Product Code</th>
                   <th>Description</th>
                   <th>UOM</th>
-                  <th>Quantity</th>
+                  <th>Qty</th>
                   <th>Price</th>
-                  <th>Delivery Date</th>
+                  <th>Delivery</th>
                   <th>Deadline</th>
                   <th>Upload</th>
                   <th>Status</th>
                   <th>Action</th>
                 </tr>
               </thead>
-              <tbody className="text-center">
+              <tbody>
                 {rfqs.length > 0 ? (
                   rfqs.map((rfq) => {
                     const isResponded = rfq.responseStatus === "Accepted" || rfq.responseStatus === "Rejected";
@@ -116,13 +106,13 @@ function VendorResponse() {
                         <td>
                           <input
                             type="file"
-                            className="form-control"
+                            className="form-control form-control-sm"
                             onChange={(e) => handleFileChange(e, rfq.id)}
                             disabled={isResponded}
                           />
                         </td>
                         <td>
-                          <span className={`badge px-3 py-2 rounded-pill fs-6 bg-${
+                          <span className={`badge rounded-pill px-3 py-2 bg-${
                             rfq.responseStatus === "Accepted"
                               ? "success"
                               : rfq.responseStatus === "Rejected"
@@ -155,15 +145,15 @@ function VendorResponse() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="11" className="text-center text-muted">No RFQs assigned</td>
+                    <td colSpan="11" className="text-muted">No RFQs assigned</td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
-
-          <ToastContainer />
         </div>
+
+        <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop transition={Zoom} />
       </div>
     </>
   );
