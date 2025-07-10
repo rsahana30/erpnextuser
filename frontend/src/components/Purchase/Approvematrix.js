@@ -1,253 +1,282 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import "bootstrap/dist/css/bootstrap.min.css";
 
 const ApprovalMatrix = () => {
-  const [form, setForm] = useState({
-    productCode: "",
-    productDescription: "",
-    uom: "",
-    currency: "",
-    approver1: "",
-    approver1From: "",
-    approver1To: "",
-    approver2: "",
-    approver2From: "",
-    approver2To: "",
-    approver3: "",
-    approver3From: "",
-    approver3To: "",
-    useDefault: false
-  });
+  const [department, setDepartment] = useState("");
+  const [currency, setCurrency] = useState("");
+  const [levels, setLevels] = useState([
+    { level: 1, rangeFrom: "", rangeTo: "", approvers: [""] }
+  ]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [savedMatrices, setSavedMatrices] = useState([]);
 
-  const [products, setProducts] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [matrixList, setMatrixList] = useState([]);
+  const departments = ["Finance", "HR", "Sales", "IT", "Logistics"];
+  const currencies = ["INR", "USD", "EUR"];
 
   useEffect(() => {
     axios.get("http://localhost:5000/api/users")
-      .then(res => setUsers(res.data))
-      .catch(err => console.error("Error loading users:", err));
-
-    axios.get("http://localhost:5000/api/approval-matrix")
-      .then(res => setMatrixList(res.data))
-      .catch(err => console.error("Error loading matrix:", err));
-
-    axios.get("http://localhost:5000/api/products")
-      .then(res => setProducts(res.data))
-      .catch(err => console.error("Error loading products:", err));
+      .then((res) => setAllUsers(res.data))
+      .catch((err) => console.error("User fetch error:", err));
   }, []);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    const val = type === "checkbox" ? checked : value;
-    setForm({ ...form, [name]: val });
+  const fetchSavedMatrices = () => {
+    axios.get("http://localhost:5000/api/approval-matrix")
+      .then((res) => setSavedMatrices(res.data))
+      .catch((err) => console.error("Matrix fetch error:", err));
   };
 
-  const handleProductSelect = (e) => {
-    const selectedCode = e.target.value;
-    const product = products.find(p => p.productCode === selectedCode);
+  useEffect(() => {
+    fetchSavedMatrices();
+  }, []);
 
-    setForm({
-      ...form,
-      productCode: selectedCode,
-      productDescription: product?.description || "",
-      uom: product?.uom || "",
-      currency: product?.currency || ""
-    });
+  const handleLevelChange = (index, field, value) => {
+    const updated = [...levels];
+    updated[index][field] = value;
+    setLevels(updated);
   };
 
-  const handleSubmit = () => {
-    if (!form.productCode) {
-      return alert("Please select a product.");
+  const handleApproverChange = (levelIndex, approverIndex, value) => {
+    const updated = [...levels];
+    updated[levelIndex].approvers[approverIndex] = value;
+    setLevels(updated);
+  };
+
+  const addApproverToLevel = (levelIndex) => {
+    const updated = [...levels];
+    updated[levelIndex].approvers.push("");
+    setLevels(updated);
+  };
+
+  const addLevel = () => {
+    setLevels([
+      ...levels,
+      { level: levels.length + 1, rangeFrom: "", rangeTo: "", approvers: [""] },
+    ]);
+  };
+
+  const handleSubmit = async () => {
+    if (!department || !currency) {
+      alert("Department and Currency are required.");
+      return;
     }
 
-    const payload = { ...form };
-
-    if (form.useDefault) {
-      payload.approver1 = "Rahul";
-      payload.approver1From = 0;
-      payload.approver1To = 5000;
-      payload.approver2 = "Glenna";
-      payload.approver2From = 0;
-      payload.approver2To = 20000;
-      payload.approver3 = "Sakshi";
-      payload.approver3From = 0;
-      payload.approver3To = 100000;
+    try {
+      const payload = { department, currency, levels };
+      await axios.post("http://localhost:5000/api/approval-matrix", payload);
+      alert("✅ Matrix saved successfully!");
+      setDepartment("");
+      setCurrency("");
+      setLevels([{ level: 1, rangeFrom: "", rangeTo: "", approvers: [""] }]);
+      fetchSavedMatrices();
+    } catch (err) {
+      console.error("Submit error:", err);
+      alert("❌ Failed to save matrix");
     }
+  };
 
-    axios.post("http://localhost:5000/api/approval-matrix", payload)
-      .then(() => {
-        alert("Matrix saved successfully");
-        window.location.reload();
-      })
-      .catch(err => {
-        console.error("Error saving matrix:", err);
-        alert("Save failed");
-      });
+  const handleDelete = async (matrixId) => {
+    if (!window.confirm("Are you sure you want to delete this matrix?")) return;
+
+    try {
+      await axios.delete(`http://localhost:5000/api/approval-matrix/${matrixId}`);
+      fetchSavedMatrices();
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("❌ Failed to delete matrix");
+    }
   };
 
   return (
-    <div className="container mt-5">
-      <h3 className="text-center mb-4">Approval Matrix Configuration</h3>
+    <div className="container my-5">
+      <h2 className="mb-4 text-dark border-bottom pb-2">📋 Approval Matrix Setup</h2>
 
-      {/* Default Approvers Summary */}
-      <div className="card mb-4">
-        <div className="card-header fw-bold bg-secondary text-dark">Default Approver Matrix</div>
-        <div className="card-body">
-          <table className="table table-bordered mb-0">
-            <thead className="table-light">
-              <tr>
-                <th>Approver</th>
-                <th>Range From</th>
-                <th>Range To</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td>Rahul</td><td>0</td><td>5,000</td></tr>
-              <tr><td>Glenna</td><td>0</td><td>20,000</td></tr>
-              <tr><td>Sakshi</td><td>0</td><td>100,000</td></tr>
-            </tbody>
-          </table>
-          <div className="form-check mt-2">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              name="useDefault"
-              checked={form.useDefault}
-              onChange={handleChange}
-            />
-            <label className="form-check-label">Use Default Approvers</label>
-          </div>
-        </div>
-      </div>
-
-      {/* Product Info */}
-      <div className="card mb-4">
-        <div className="card-header fw-bold">Select Product</div>
-        <div className="card-body row g-3">
-          <div className="col-md-4">
-            <label className="form-label">Product Code</label>
+      {/* Matrix Form */}
+      <div className="card shadow p-4 mb-4">
+        <h5 className="mb-3 text-dark">Matrix Details</h5>
+        <div className="row g-3 mb-4">
+          <div className="col-md-6">
+            <label className="form-label">Department</label>
             <select
               className="form-select"
-              name="productCode"
-              value={form.productCode}
-              onChange={handleProductSelect}
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
             >
-              <option value="">Select Product</option>
-              {products.map((p, idx) => (
-                <option key={idx} value={p.productCode}>{p.productCode}</option>
+              <option value="">-- Select Department --</option>
+              {departments.map((d, i) => (
+                <option key={i} value={d}>{d}</option>
               ))}
             </select>
           </div>
-          <div className="col-md-4">
-            <label className="form-label">Product Description</label>
-            <input className="form-control" name="productDescription" value={form.productDescription} readOnly />
-          </div>
-          <div className="col-md-2">
-            <label className="form-label">UOM</label>
-            <input className="form-control" name="uom" value={form.uom} readOnly />
-          </div>
-          <div className="col-md-2">
+          <div className="col-md-6">
             <label className="form-label">Currency</label>
-            <input className="form-control" name="currency" value={form.currency} readOnly />
+            <select
+              className="form-select"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+            >
+              <option value="">-- Select Currency --</option>
+              {currencies.map((c, i) => (
+                <option key={i} value={c}>{c}</option>
+              ))}
+            </select>
           </div>
         </div>
-      </div>
 
-      {/* Approver Levels */}
-      {!form.useDefault && (
-        <div className="card mb-4">
-          <div className="card-header fw-bold">Set Approvers & Ranges</div>
-          <div className="card-body">
-            {[1, 2, 3].map((num) => (
-              <div className="row g-3 align-items-end mb-3" key={num}>
-                <div className="col-md-4">
-                  <label className="form-label">Approver {num}</label>
+        <h6 className="text-muted mb-2">Approver Levels</h6>
+        {levels.map((level, levelIndex) => (
+          <div key={levelIndex} className="border rounded bg-light p-3 mb-3">
+            <h6 className="text-secondary">Level {level.level}</h6>
+            <div className="row g-3 mb-2">
+              <div className="col-md-3">
+                <label className="form-label">Range From</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={level.rangeFrom}
+                  onChange={(e) =>
+                    handleLevelChange(levelIndex, "rangeFrom", e.target.value)
+                  }
+                />
+              </div>
+              <div className="col-md-3">
+                <label className="form-label">Range To</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={level.rangeTo}
+                  onChange={(e) =>
+                    handleLevelChange(levelIndex, "rangeTo", e.target.value)
+                  }
+                />
+              </div>
+            </div>
+
+            <label className="form-label">Approvers</label>
+            {level.approvers.map((approver, approverIndex) => (
+              <div className="row mb-2" key={approverIndex}>
+                <div className="col-md-6">
                   <select
                     className="form-select"
-                    name={`approver${num}`}
-                    value={form[`approver${num}`]}
-                    onChange={handleChange}
+                    value={approver}
+                    onChange={(e) =>
+                      handleApproverChange(levelIndex, approverIndex, e.target.value)
+                    }
                   >
-                    <option value="">Select Approver</option>
-                    {users.map((user) => (
-                      <option key={user.id} value={user.username}>{user.username}</option>
+                    <option value="">-- Select Approver --</option>
+                    {allUsers.map((user, i) => (
+                      <option key={i} value={user.name || user.username}>
+                        {user.name || user.username}
+                      </option>
                     ))}
                   </select>
                 </div>
-                <div className="col-md-4">
-                  <label className="form-label">Range From</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    name={`approver${num}From`}
-                    value={form[`approver${num}From`]}
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="col-md-4">
-                  <label className="form-label">Range To</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    name={`approver${num}To`}
-                    value={form[`approver${num}To`]}
-                    onChange={handleChange}
-                  />
-                </div>
               </div>
             ))}
+            <button
+              className="btn btn-sm btn-outline-dark mt-2"
+              onClick={() => addApproverToLevel(levelIndex)}
+            >
+              + Add Approver
+            </button>
           </div>
-        </div>
-      )}
+        ))}
 
-      <div className="text-end mb-5">
-        <button className="btn btn-dark px-4" onClick={handleSubmit}>Save Matrix</button>
+        <div className="d-flex justify-content-between mt-4">
+          <button className="btn btn-outline-secondary" onClick={addLevel}>
+            + Add Level
+          </button>
+          <button className="btn btn-secondary" onClick={handleSubmit}>
+            ✅ Save Matrix
+          </button>
+        </div>
       </div>
 
-      {/* Matrix Table */}
-      <div className="card">
-        <div className="card-header fw-bold">Existing Approval Matrix</div>
-        <div className="card-body table-responsive">
-          <table className="table table-striped table-bordered">
+      {/* Live Preview */}
+      {department && currency && (
+        <div className="card border-info mb-5 p-4">
+          <h5 className="text-info">Live Preview</h5>
+          <p>
+            <strong>Department:</strong> {department} &nbsp;|&nbsp;
+            <strong>Currency:</strong> {currency}
+          </p>
+          <table className="table table-bordered table-hover">
             <thead className="table-light">
               <tr>
-                <th>Product Code</th>
-                <th>Description</th>
-                <th>UOM</th>
-                <th>Currency</th>
-                <th>Approver 1</th>
-                <th>Range 1</th>
-                <th>Approver 2</th>
-                <th>Range 2</th>
-                <th>Approver 3</th>
-                <th>Range 3</th>
+                <th>Level</th>
+                <th>Range From</th>
+                <th>Range To</th>
+                <th>Approvers</th>
               </tr>
             </thead>
             <tbody>
-              {matrixList.map((row, idx) => (
-                <tr key={idx}>
-                  <td>{row.productCode}</td>
-                  <td>{row.productDescription}</td>
-                  <td>{row.uom}</td>
-                  <td>{row.currency}</td>
-                  <td>{row.approver1}</td>
-                  <td>{row.approver1From} - {row.approver1To}</td>
-                  <td>{row.approver2}</td>
-                  <td>{row.approver2From} - {row.approver2To}</td>
-                  <td>{row.approver3}</td>
-                  <td>{row.approver3From} - {row.approver3To}</td>
+              {levels.map((level, i) => (
+                <tr key={i}>
+                  <td>Level {level.level}</td>
+                  <td>{level.rangeFrom}</td>
+                  <td>{level.rangeTo}</td>
+                  <td>
+                    {level.approvers
+                      .filter(Boolean)
+                      .map((a, j) => (
+                        <span key={j} className="badge bg-primary me-1">{a}</span>
+                      ))}
+                  </td>
                 </tr>
               ))}
-              {matrixList.length === 0 && (
-                <tr>
-                  <td colSpan="10" className="text-center text-muted">No entries yet.</td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
-      </div>
+      )}
+
+      {/* Saved Matrices */}
+      {savedMatrices.length > 0 && (
+        <div className="card p-4 shadow-sm">
+          <h4 className="mb-4 text-dark">🗃️ Saved Matrices</h4>
+          {savedMatrices.map((matrix, index) => (
+            <div key={index} className="border rounded p-3 mb-4">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <h6 className="mb-0">
+                  <strong>Department:</strong> {matrix.department} |{" "}
+                  <strong>Currency:</strong> {matrix.currency}
+                </h6>
+                <button
+                  className="btn btn-sm btn-danger"
+                  onClick={() => handleDelete(matrix.matrixId)}
+                >
+                  Delete
+                </button>
+              </div>
+              <table className="table table-bordered table-striped">
+                <thead className="table-light">
+                  <tr>
+                    <th>Level</th>
+                    <th>Range From</th>
+                    <th>Range To</th>
+                    <th>Approvers</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {matrix.levels.map((level, lvlIndex) => (
+                    <tr key={lvlIndex}>
+                      <td>Level {level.level}</td>
+                      <td>{level.rangeFrom}</td>
+                      <td>{level.rangeTo}</td>
+                      <td>
+                        {level.approvers.map((a, i) => (
+                          <span key={i} className="badge bg-secondary me-1">
+                            {a}
+                          </span>
+                        ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

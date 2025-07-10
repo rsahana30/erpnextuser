@@ -38,11 +38,39 @@ const PurchaseData = () => {
   const [purchaseCounter, setPurchaseCounter] = useState(1);
   const [currentStep, setCurrentStep] = useState(1);
   const [purchases, setPurchases] = useState([]);
-   const [tableData, setTableData] = useState([]);
+  const [groupedPricing, setGroupedPricing] = useState({});
+  const [savedSummaries, setSavedSummaries] = useState({});
 
-  useEffect(() => {
-    axios.get("http://localhost:5000/api/getPurchases").then((res) => setPurchases(res.data));
-  }, []);
+
+
+
+ useEffect(() => {
+  axios.get("http://localhost:5000/api/getPurchases").then((res) => {
+    setPurchases(res.data);
+
+    const savedMap = {};
+    res.data.forEach(p => {
+      if (p.summarySaved) {
+        savedMap[p.referenceId] = true;
+      }
+    });
+    setSavedSummaries(savedMap);
+
+    const lastRef = res.data
+      .map(p => p.referenceId)
+      .filter(Boolean)
+      .sort()
+      .reverse()[0];
+
+    if (lastRef?.startsWith("PR")) {
+      const lastNumber = parseInt(lastRef.slice(-4));
+      setPurchaseCounter(lastNumber + 1);
+    }
+  });
+}, []); // ✅ ADD THIS
+
+
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -67,31 +95,7 @@ const PurchaseData = () => {
   }, []);
 
 
-  useEffect(() => {
-  let res=axios.get("http://localhost:5000/api/getPurchases").then((res) => {
-    const initializedData = res.data.map((item) => ({
-      
-      productCode: item.productCode,
-      description: item.description,
-      uom: item.uom,
-      quantity: item.quantity || 0,
-      unitPrice: item.total || 0,
-      deliveryDate: "",
-      hsnCode: item.hsnCode,
-      taxCode: "",
-      discount: 0,
-      netPrice: 0,
-      deliveryCost: 0,
-      actualPrice: 0,
-       
-    }));
-    console.log(initializedData);
-    
-  
-    
-    setTableData(initializedData);
-  });
-}, []);
+
 
   useEffect(() => {
     const result = productDetails.filter((p) => {
@@ -111,36 +115,54 @@ const PurchaseData = () => {
     new Modal(document.getElementById("multiStepModal")).show();
   };
 
+const handleGroupedSave = async (refId, summary) => {
+  const { total, discount, netPrice, delivery, actualPrice } = summary;
+
+  try {
+    await axios.post("http://localhost:5000/api/savePurchaseSummary", {
+      referenceId: refId,
+      total,
+      discount,
+      netPrice,
+      delivery,
+      actualPrice
+    });
+
+    alert(`✅ Summary saved for ${refId}`);
+
+    // 🔒 Mark the row as saved
+    setSavedSummaries(prev => ({
+      ...prev,
+      [refId]: true
+    }));
+
+  } catch (err) {
+    console.error("❌ API Error:", err.response?.data || err.message);
+    alert("❌ Failed to save summary");
+  }
+};
+
+useEffect(() => {
+  let res=axios.get("http://localhost:5000/api/getSavedSummaries")
+    .then((res) => {
+      const savedMap = {};
+      res.data.forEach((row) => {
+        savedMap[row.referenceId] = true;
+      });
+      console.log(res);
+      
+      setSavedSummaries(savedMap); // 👈 This ensures Save buttons stay disabled
+    })
+    .catch((err) => {
+      console.error("❌ Failed to fetch saved summaries:", err.message);
+    });
+}, []);
 
 
-  const handleChange = (index, field, value) => {
-    const updated = [...tableData];
-    updated[index][field] = value;
 
-    if (["discount", "unitPrice", "deliveryCost", "quantity"].includes(field)) {
-      const qty = parseFloat(updated[index].quantity || 0);
-      const unitPrice = parseFloat(updated[index].unitPrice || 0);
-      const discount = parseFloat(updated[index].discount || 0);
-      const deliveryCost = parseFloat(updated[index].deliveryCost || 0);
 
-      const netPrice = qty * unitPrice * (1 - discount / 100);
-      const actualPrice = netPrice + deliveryCost;
 
-      updated[index].netPrice = netPrice.toFixed(2);
-      updated[index].actualPrice = actualPrice.toFixed(2);
-    }
 
-    setTableData(updated);
-  };
-   const handleSave = async () => {
-    try {
-      await axios.post("http://localhost:5000/api/savePurchaseTable", tableData);
-      alert("✅ Purchase table saved successfully!");
-    } catch (err) {
-      console.error(err);
-      alert("❌ Failed to save purchase table");
-    }
-  };
 
   const handleConfirm = async () => {
     const today = new Date();
@@ -208,97 +230,189 @@ const PurchaseData = () => {
           </>
         );
       case 2:
-        return (
-          <>
-            <h5>Select Vendor(s)</h5>
-            <div className="list-group">
-              {dropdownOptions.vendors.map((v) => (
-                <label key={v.id} className="list-group-item">
-                  <input type="checkbox" className="form-check-input me-2"
-                    checked={selectedVendors.some(sv => sv.id === v.id)}
-                    onChange={() => {
-                      setSelectedVendors(prev =>
-                        prev.some(sv => sv.id === v.id) ? prev.filter(p => p.id !== v.id) : [...prev, v]
-                      );
-                    }}
-                  /> {v.vendorName} ({v.country})
-                </label>
-              ))}
-            </div>
-          </>
-        );
+  return (
+    <>
+      <h5>Select Vendor(s)</h5>
+      <table className="table table-bordered table-striped table-sm">
+        <thead className="table-light">
+          <tr>
+            <th>Select</th>
+            <th>Vendor Code</th>
+            <th>Vendor Name</th>
+            <th>Country</th>
+            <th>GST Code</th>
+          </tr>
+        </thead>
+        <tbody>
+          {dropdownOptions.vendors.map((v) => (
+            <tr key={v.id}>
+              <td>
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  checked={selectedVendors.some(sv => sv.id === v.id)}
+                  onChange={() => {
+                    setSelectedVendors(prev =>
+                      prev.some(sv => sv.id === v.id)
+                        ? prev.filter(p => p.id !== v.id)
+                        : [...prev, v]
+                    );
+                  }}
+                />
+              </td>
+              <td>{v.vendorCode}</td>
+              <td>{v.vendorName}</td>
+              <td>{v.country}</td>
+              <td>{v.gstcode}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+
       case 3:
-        return (
-          <>
-            <h5>Select Location(s)</h5>
-            <div className="list-group">
-              {dropdownOptions.locations.map((l) => (
-                <label key={l.id} className="list-group-item">
-                  <input type="checkbox" className="form-check-input me-2"
-                    checked={selectedLocations.some(sl => sl.id === l.id)}
-                    onChange={() => {
-                      setSelectedLocations(prev =>
-                        prev.some(sl => sl.id === l.id) ? prev.filter(p => p.id !== l.id) : [...prev, l]
-                      );
-                    }}
-                  /> {l.locationName} ({l.country})
-                </label>
-              ))}
-            </div>
-          </>
-        );
+  return (
+    <>
+      <h5>Select Location(s)</h5>
+      <table className="table table-bordered table-striped table-sm">
+        <thead className="table-light">
+          <tr>
+            <th>Select</th>
+            <th>Location Code</th>
+            <th>Location Name</th>
+            <th>Country</th>
+            <th>GST Code</th>
+          </tr>
+        </thead>
+        <tbody>
+          {dropdownOptions.locations.map((l) => (
+            <tr key={l.id}>
+              <td>
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  checked={selectedLocations.some(sl => sl.id === l.id)}
+                  onChange={() => {
+                    setSelectedLocations(prev =>
+                      prev.some(sl => sl.id === l.id)
+                        ? prev.filter(p => p.id !== l.id)
+                        : [...prev, l]
+                    );
+                  }}
+                />
+              </td>
+              <td>{l.locationCode}</td>
+              <td>{l.locationName}</td>
+              <td>{l.country}</td>
+              <td>{l.gstcode}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+
       case 4:
-        return (
-          <>
-            <h5>Final Review</h5>
-            <h6>Products:</h6>
-            <table className="table table-bordered table-sm">
-              <thead>
-                <tr><th>Code</th><th>Description</th><th>UOM</th><th>Qty</th><th>Total</th><th>HSN</th><th>Type</th><th>Brand</th></tr>
-              </thead>
-              <tbody>
-                {selectedProducts.map((p, i) => (
-                  <tr key={i}>
-                    <td>{p.productCode}</td>
-                    <td>{p.description}</td>
-                    <td>{p.uom}</td>
-                    <td>{p.quantity}</td>
-                    <td>{p.total?.toFixed(2)}</td>
-                    <td>{p.hsnCode}</td>
-                    <td>{p.productType}</td>
-                    <td>{p.brand}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+  return (
+    <>
+      <h5>Final Review</h5>
 
-            <h6>Vendor Details:</h6>
-            <table className="table table-bordered table-sm">
-              <thead><tr><th>Name</th><th>Address</th><th>Email</th><th>GST</th></tr></thead>
-              <tbody>
-                {selectedVendors.map((v, i) => (
-                  <tr key={i}>
-                    <td>{v.vendorName}</td><td>{v.address}</td><td>{v.email}</td><td>{v.gstcode}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <h6>Products:</h6>
+      <table className="table table-bordered table-sm">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Description</th>
+            <th>UOM</th>
+            <th>Weight</th>
+            <th>Weight Unit</th>
+            <th>Quantity</th>
+            <th>Unit Price</th>
+            <th>Valuation Class</th>
+            <th>Profit Centre</th>
+            <th>HSN Code</th>
+            <th>Currency</th>
+            <th>Controller</th>
+            <th>Type</th>
+            <th>Group</th>
+            <th>Brand</th>
+            <th>Category</th>
+          </tr>
+        </thead>
+        <tbody>
+          {selectedProducts.map((p, i) => (
+            <tr key={i}>
+              <td>{p.productCode}</td>
+              <td>{p.description}</td>
+              <td>{p.uom}</td>
+              <td>{p.weight}</td>
+              <td>{p.weightUnit}</td>
+               <td>{p.quantity}</td>
+              <td>{p.unitPrice}</td>
+              <td>{p.valuationClass}</td>
+              <td>{p.profitCentre}</td>
+              <td>{p.hsnCode}</td>
+              <td>{p.currency}</td>
+              <td>{p.controller}</td>
+              <td>{p.productType}</td>
+              <td>{p.productGroup}</td>
+              <td>{p.brand}</td>
+             
+              <td>{p.category}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
-            <h6>Location Details:</h6>
-            <table className="table table-bordered table-sm">
-              <thead><tr><th>Name</th><th>Address</th><th>Email</th><th>GST</th></tr></thead>
-              <tbody>
-                {selectedLocations.map((l, i) => (
-                  <tr key={i}>
-                    <td>{l.locationName}</td><td>{l.address}</td><td>{l.email}</td><td>{l.gstcode}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <h6>Vendor Details:</h6>
+      <table className="table table-bordered table-sm">
+        <thead>
+          <tr>
+            <th>Vendor Code</th>
+            <th>Vendor Name</th>
+            <th>Country</th>
+            <th>GST Code</th>
+          </tr>
+        </thead>
+        <tbody>
+          {selectedVendors.map((v, i) => (
+            <tr key={i}>
+              <td>{v.vendorCode}</td>
+              <td>{v.vendorName}</td>
+              <td>{v.country}</td>
+              <td>{v.gstcode}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
-            <strong>Total: ₹{selectedProducts.reduce((sum, p) => sum + (p.total || 0), 0).toFixed(2)}</strong>
-          </>
-        );
+      <h6>Location Details:</h6>
+      <table className="table table-bordered table-sm">
+        <thead>
+          <tr>
+            <th>Location Code</th>
+            <th>Location Name</th>
+            <th>Country</th>
+            <th>GST Code</th>
+          </tr>
+        </thead>
+        <tbody>
+          {selectedLocations.map((l, i) => (
+            <tr key={i}>
+              <td>{l.locationCode}</td>
+              <td>{l.locationName}</td>
+              <td>{l.country}</td>
+              <td>{l.gstcode}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <strong>Total: ₹{selectedProducts.reduce((sum, p) => sum + (p.total || 0), 0).toFixed(2)}</strong>
+    </>
+  );
+
       default:
         return null;
     }
@@ -397,96 +511,113 @@ const PurchaseData = () => {
         </table>
       </div>
 
+<div className="container mt-5">
+  <h4>🧾 Grouped Purchase Summary</h4>
 
+  <table className="table table-bordered table-striped">
+    <thead className="table-dark">
+      <tr>
+        <th>Reference ID</th>
+        <th>Total Price (₹)</th>
+        <th>Discount (₹)</th>
+        <th>Net Price (₹)</th>
+        <th>Delivery Price (₹)</th>
+        <th>Actual Price (₹)</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {Object.entries(
+        purchases.reduce((acc, curr) => {
+          const refId = curr.referenceId;
+          if (!acc[refId]) acc[refId] = [];
+          acc[refId].push(curr);
+          return acc;
+        }, {})
+      ).map(([refId, items], idx) => {
+        const total = items.reduce((sum, i) => sum + Number(i.total || 0), 0);
 
-      <div className="container mt-5">
-      <h3 className="mb-4">📦 Purchase Entry Table</h3>
-      <table className="table table-bordered table-striped">
-        <thead className="table-secondary">
-          <tr>
-            <th>Product Code</th>
-            <th>Description</th>
-            <th>UOM</th>
-            <th>Quantity</th>
-            <th>Unit Price</th>
-            <th>Delivery Date</th>
-            <th>HSN Code</th>
-            <th>Tax Code</th>
-            <th>Discount (%)</th>
-            <th>Net Price</th>
-            <th>Delivery Cost</th>
-            <th>Actual Price</th>
+        const discount = groupedPricing[refId]?.discount || 0;
+        const delivery = groupedPricing[refId]?.delivery || 0;
+
+        const netPrice = total - discount;
+        const actualPrice = netPrice + delivery;
+
+        return (
+          <tr key={idx}>
+            <td>{refId}</td>
+            <td>₹{total.toFixed(2)}</td>
+            <td>
+              <input
+                type="number"
+                className="form-control form-control-sm"
+                value={discount}
+                disabled={savedSummaries[refId]} // 🔒 Disable if saved
+                onChange={(e) =>
+                  setGroupedPricing((prev) => ({
+                    ...prev,
+                    [refId]: {
+                      ...prev[refId],
+                      discount: parseFloat(e.target.value) || 0,
+                    },
+                  }))
+                }
+              />
+            </td>
+            <td>₹{netPrice.toFixed(2)}</td>
+            <td>
+              <input
+                type="number"
+                className="form-control form-control-sm"
+                value={delivery}
+                disabled={savedSummaries[refId]} // 🔒 Disable if saved
+                onChange={(e) =>
+                  setGroupedPricing((prev) => ({
+                    ...prev,
+                    [refId]: {
+                      ...prev[refId],
+                      delivery: parseFloat(e.target.value) || 0,
+                    },
+                  }))
+                }
+              />
+            </td>
+            <td>₹{actualPrice.toFixed(2)}</td>
+            <td>
+              <button
+                className="btn btn-outline-success btn-sm"
+                disabled={savedSummaries[refId]} // ✅ Disable if ref is marked saved
+ // 🔒 Disable Save button
+                onClick={() =>
+                  handleGroupedSave(refId, {
+                    total,
+                    discount,
+                    netPrice,
+                    delivery,
+                    actualPrice,
+                  })
+                }
+              >
+                Save
+              </button>
+            </td>
           </tr>
-        </thead>
+        );
+      })}
+    </tbody>
+  </table>
 
 
+  <div className="text-end">
+    <button className="btn btn-primary" >
+      Convert to PO
+    </button>
+  </div>
+</div>
 
-        <tbody>
-          {tableData.map((row, index) => (
-            <tr key={index}>
-              <td>{row.productCode}</td>
-              <td>{row.description}</td>
-              <td>{row.uom}</td>
-              <td>
-                <input
-                  type="number"
-                  className="form-control"
-                  value={row.quantity || ""}
-                  onChange={(e) => handleChange(index, "quantity", e.target.value)}
-                />
-              </td>
-              <td>
-                <input
-                  type="number"
-                  className="form-control"
-                  value={row.unitPrice || ""}
-                  onChange={(e) => handleChange(index, "unitPrice", e.target.value)}
-                />
-              </td>
-              <td>
-                <input
-                  type="date"
-                  className="form-control"
-                  value={row.deliveryDate || ""}
-                  onChange={(e) => handleChange(index, "deliveryDate", e.target.value)}
-                />
-              </td>
-              <td>{row.hsnCode}</td>
-              <td>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={row.taxCode || ""}
-                  onChange={(e) => handleChange(index, "taxCode", e.target.value)}
-                />
-              </td>
-              <td>
-                <input
-                  type="number"
-                  className="form-control"
-                  value={row.discount || 0}
-                  onChange={(e) => handleChange(index, "discount", e.target.value)}
-                />
-              </td>
-              <td>{row.netPrice}</td>
-              <td>
-                <input
-                  type="number"
-                  className="form-control"
-                  value={row.deliveryCost || 0}
-                  onChange={(e) => handleChange(index, "deliveryCost", e.target.value)}
-                />
-              </td>
-              <td>{row.actualPrice}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
 
-      <button className="btn btn-success mt-3" onClick={handleSave}>
-        💾 Save Purchase Table
-      </button>
-    </div>
+    
+
     </div>
   );
 };

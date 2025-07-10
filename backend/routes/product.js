@@ -643,56 +643,108 @@ router.post("/customer-decision", (req, res) => {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //approval matrix
-router.post("/approval-matrix", (req, res) => {
-  const {
-    productCode, productDescription, uom, currency,
-    approver1, approver1From, approver1To,
-    approver2, approver2From, approver2To,
-    approver3, approver3From, approver3To,
-    useDefault // New field
-  } = req.body;
+router.post('/approval-matrix', async (req, res) => {
+  const { department, currency, levels } = req.body;
 
-  const parseOrNull = (val) => {
-    const n = parseFloat(val);
-    return isNaN(n) ? null : n;
-  };
+  if (!department || !currency || !levels || !Array.isArray(levels)) {
+    return res.status(400).json({ message: "Invalid payload" });
+  }
 
-  const sql = `INSERT INTO approval_matrix (
-    productCode, productDescription, uom, currency,
-    approver1, approver1From, approver1To,
-    approver2, approver2From, approver2To,
-    approver3, approver3From, approver3To,
-    useDefault
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  try {
+    // Insert into approval_matrix
+    const [matrixResult] = await connection.promise().query(
+      'INSERT INTO approval_matrix (department, currency) VALUES (?, ?)',
+      [department, currency]
+    );
 
-  const values = [
-    productCode, productDescription, uom, currency,
-    approver1, parseOrNull(approver1From), parseOrNull(approver1To),
-    approver2, parseOrNull(approver2From), parseOrNull(approver2To),
-    approver3, parseOrNull(approver3From), parseOrNull(approver3To),
-    useDefault ? 1 : 0
-  ];
+    const matrixId = matrixResult.insertId;
 
-  connection.query(sql, values, (err, result) => {
-    if (err) {
-      console.error("Insert error:", err.message);
-      return res.status(500).send("Failed to save approval matrix");
+    // Insert each level and its approvers
+    for (const level of levels) {
+      const { level: levelNumber, rangeFrom, rangeTo, approvers } = level;
+
+      for (const approverName of approvers) {
+        await connection.promise().query(
+          `INSERT INTO approval_matrix_levels 
+           (matrixId, level, rangeFrom, rangeTo, approverName)
+           VALUES (?, ?, ?, ?, ?)`,
+          [matrixId, levelNumber, rangeFrom, rangeTo, approverName]
+        );
+      }
     }
-    res.send("Approval matrix saved successfully");
-  });
+
+    res.status(200).json({ message: "Approval matrix saved successfully" });
+  } catch (err) {
+    console.error("Error saving approval matrix:", err);
+    console.error("💥 Error in POST /api/approval-matrix:", err);
+res.status(500).json({ message: "Server error", error: err.message });
+
+  }
 });
 
+// Fetch approval matrix with levels
+router.get("/approval-matrix", async (req, res) => {
+  try {
+    const [rows] = await connection.promise().query(`
+      SELECT 
+        m.id AS matrixId,
+        m.department,
+        m.currency,
+        l.level,
+        l.rangeFrom,
+        l.rangeTo,
+        l.approverName
+      FROM approval_matrix m
+      JOIN approval_matrix_levels l ON m.id = l.matrixId
+      ORDER BY m.id, l.level
+    `);
 
+    const matrixMap = {};
 
-// Fetch Approval Matrix
-router.get("/approval-matrix", (req, res) => {
-  connection.query("SELECT * FROM approval_matrix", (err, result) => {
-    if (err) {
-      console.error("Fetch error:", err);
-      return res.status(500).send("Failed to fetch matrix");
+    for (const row of rows) {
+      if (!matrixMap[row.matrixId]) {
+        matrixMap[row.matrixId] = {
+          matrixId: row.matrixId,
+          department: row.department,
+          currency: row.currency,
+          levels: [],
+        };
+      }
+
+      const matrix = matrixMap[row.matrixId];
+      let levelEntry = matrix.levels.find((l) => l.level === row.level);
+
+      if (!levelEntry) {
+        levelEntry = {
+          level: row.level,
+          rangeFrom: row.rangeFrom,
+          rangeTo: row.rangeTo,
+          approvers: [],
+        };
+        matrix.levels.push(levelEntry);
+      }
+
+      if (row.approverName) {
+        levelEntry.approvers.push(row.approverName);
+      }
     }
-    res.json(result);
-  });
+
+    res.json(Object.values(matrixMap));
+  } catch (err) {
+    console.error("Error in /api/approval-matrix:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.delete("/approval-matrix/:id", async (req, res) => {
+  const id = req.params.id;
+  try {
+    await connection.promise().query("DELETE FROM approval_matrix WHERE id = ?", [id]);
+    res.json({ message: "Deleted" });
+  } catch (err) {
+    console.error("Delete error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 // Hardcoded Users
@@ -713,7 +765,67 @@ router.get("/users", (req, res) => {
 
 
 
+/////////////////////////////////////////////////////////////////////////////////////////
+//payment-terms
+router.get("/productfetched", (req, res) => {
+  const sql = "SELECT productCode, description FROM productdetails";
+  connection.query(sql, (err, results) => {
+    if (err) {
+      console.error("Product fetch error:", err);
+      return res.status(500).json({ message: "Server error" });
+    }
+    res.json(results);
+  });
+});
 
+// Get all payment terms
+router.get("/payment-terms", (req, res) => {
+  const sql = "SELECT * FROM paymentterms ORDER BY id DESC";
+  connection.query(sql, (err, results) => {
+    if (err) {
+      console.error("Payment terms fetch error:", err);
+      return res.status(500).json({ message: "Server error" });
+    }
+    res.json(results);
+  });
+});
+
+// Save payment term
+router.post("/payment-terms", (req, res) => {
+  const {
+    productCode,
+    productDescription,
+    payment1Days,
+    payment1Percent,
+    payment2Days,
+    payment2Percent,
+    netDays,
+  } = req.body;
+
+  const sql = `
+    INSERT INTO paymentterms (
+      productCode, productDescription, payment1Days, payment1Percent,
+      payment2Days, payment2Percent, netDays
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+  `;
+  const values = [
+    productCode,
+    productDescription,
+    payment1Days,
+    payment1Percent,
+    payment2Days,
+    payment2Percent,
+    netDays,
+  ];
+
+  connection.query(sql, values, (err, result) => {
+    if (err) {
+      console.error("Insert error:", err);
+      return res.status(500).json({ message: "Insert failed" });
+    }
+    res.json({ message: "Payment term saved", id: result.insertId });
+  });
+});
 
 
 
@@ -940,32 +1052,32 @@ router.post("/savevendor", (req, res) => {
 
 
 // POST /api/savePurchase
-router.post("/savePurchase", (req, res) => {
-  const { referenceId, selectedProducts, vendors, locations, total } = req.body;
+// router.post("/savePurchase", (req, res) => {
+//   const { referenceId, selectedProducts, vendors, locations, total } = req.body;
 
-  const purchaseQuery = `
-    INSERT INTO purchases (referenceId, productCode, description, uom, unitPrice, quantity, total, vendors, locations, grandTotal)
-    VALUES ?
-  `;
+//   const purchaseQuery = `
+//     INSERT INTO purchases (referenceId, productCode, description, uom, unitPrice, quantity, total, vendors, locations, grandTotal)
+//     VALUES ?
+//   `;
 
-  const values = selectedProducts.map(p => [
-    referenceId,
-    p.productCode,
-    p.description,
-    p.uom,
-    p.unitPrice,
-    p.quantity,
-    p.total,
-    vendors.map(v => v.vendorName).join(", "),
-    locations.map(l => l.locationName).join(", "),
-    total
-  ]);
+//   const values = selectedProducts.map(p => [
+//     referenceId,
+//     p.productCode,
+//     p.description,
+//     p.uom,
+//     p.unitPrice,
+//     p.quantity,
+//     p.total,
+//     vendors.map(v => v.vendorName).join(", "),
+//     locations.map(l => l.locationName).join(", "),
+//     total
+//   ]);
 
-  connection.query(purchaseQuery, [values], (err, result) => {
-    if (err) return res.status(500).send(err);
-    res.send({ message: "Purchase saved successfully" });
-  });
-});
+//   connection.query(purchaseQuery, [values], (err, result) => {
+//     if (err) return res.status(500).send(err);
+//     res.send({ message: "Purchase saved successfully" });
+//   });
+// });
 
 
 // GET /api/getPurchases
@@ -974,6 +1086,100 @@ router.get("/getPurchases", (req, res) => {
     if (err) return res.status(500).send(err);
     res.send(results);
   });
+});
+
+// Assuming you use Express and have body-parser middleware
+
+
+router.post("/savePurchaseSummary", async (req, res) => {
+  const { referenceId, total, discount, netPrice, delivery, actualPrice } = req.body;
+
+  try {
+    await connection.promise().query(
+      "INSERT INTO purchase_summary (referenceId, total, discount, netPrice, delivery, actualPrice) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE total = ?, discount = ?, netPrice = ?, delivery = ?, actualPrice = ?",
+      [referenceId, total, discount, netPrice, delivery, actualPrice, total, discount, netPrice, delivery, actualPrice]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Error in /savePurchaseSummary:", err); // ✅ shows real problem
+    res.status(500).json({ error: "Failed to save purchase summary" });
+  }
+});
+
+
+
+
+
+router.get("/getSavedSummaries", async (req, res) => {
+  try {
+    const [rows] = await connection.promise().query("SELECT referenceId FROM purchase_summary");
+    res.json(rows);
+  } catch (err) {
+    console.error("❌ Error in /getSavedSummaries:", err.message);
+    res.status(500).json({ error: "Failed to fetch saved summaries" });
+  }
+});
+
+
+router.post("/savePurchase", async (req, res) => {
+  const { referenceId, selectedProducts, vendors, locations, total } = req.body;
+
+  try {
+    for (const product of selectedProducts) {
+      for (const vendor of vendors) {
+        for (const location of locations) {
+          await connection.promise().query(
+            `INSERT INTO purchases (
+              referenceId, productCode, description, uom, unitPrice, quantity, total, grandTotal,
+              vendorCode, vendorName, vendorCountry, vendorGST,
+              locationCode, locationName, locationCountry, locationGST
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              referenceId,
+              product.productCode,
+              product.description,
+              product.uom,
+              product.unitPrice,
+              product.quantity,
+              product.total || 0,
+              total,
+              vendor.vendorCode,
+              vendor.vendorName,
+              vendor.country,
+              vendor.gstcode,
+              location.locationCode,
+              location.locationName,
+              location.country,
+              location.gstcode
+            ]
+          );
+        }
+      }
+    }
+
+    res.json({ success: true, message: "✅ Purchase saved successfully" });
+  } catch (error) {
+    console.error("❌ Error saving purchase:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+});
+router.get("/getTaxCode/:hsn", async (req, res) => {
+  const hsn = req.params.hsn;
+  try {
+    const [rows] = await connection.promise().query(
+      "SELECT tax_code FROM hsn_tax_mapping WHERE hsn_code = ?", [hsn]
+    );
+
+    if (rows.length > 0) {
+      res.json({ tax_code: rows[0].tax_code });
+    } else {
+      res.status(404).json({ message: "HSN code not found" });
+    }
+  } catch (error) {
+    console.error("Error fetching tax code:", error);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 

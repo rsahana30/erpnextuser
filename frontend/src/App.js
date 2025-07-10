@@ -7,18 +7,20 @@ import Home from './components/Home';
 import MasterData from './components/Masterdata/MasterData';
 import ViewProduct from './components/Masterdata/ViewProduct';
 import Purchase from './components/Purchase/Purchase';
-import Product from './components/Masterdata/Product';
+
 import Location from './components/Masterdata/Location';
 import Vendor from './components/Masterdata/Vendor';
 import ApprovalMatrix from './components/Purchase/Approvematrix';
 import Purchaseorder from './components/Purchase/Purchaseorder';
-import Dashboard from './pages/Dashboard';
+
 import RFQ from './components/Purchase/RFQ';
 import VendorQuotation from './components/Purchase/VendorQuotation';
 import PurchaseRequisition from './components/Purchase/PurchaseRequisition';
 import VendorResponse from './components/Purchase/VendorResponse';
 import Vendorlogin from './components/Vendorlogin';
 import VendorResponseView from './components/Purchase/VendorResponseView';
+import PaymentTerms from './components/Purchase/PaymentTerms';
+import PurchaseData from './components/Purchase/PurchaseData';
 
 function App() {
   return (
@@ -36,7 +38,7 @@ function App() {
         <Route path="/" element={<Signup />} />
         <Route path="/home" element={<Home />} />
         <Route path="/view-product" element={<ViewProduct />} />
-
+        <Route path="/payment" element={<PaymentTerms/>} />
        <Route path="/vendor-response" element={<VendorResponse/>} />
        <Route path="/vendor-login" element={<Vendorlogin/>} />
         <Route path="/vendor-view" element={<VendorResponseView/>} />
@@ -53,7 +55,7 @@ function App() {
         <Route path='/rfq' element={<RFQ />} />
         <Route path='/vendorquot' element={<VendorQuotation/>} />
         <Route path='/purchasereq' element={<PurchaseRequisition/>} />
-        <Route path='/purchase/request' element={<Purchase/>}/>
+        <Route path='/purchase/request' element={<PurchaseData/>}/>
 
 
       </Routes>

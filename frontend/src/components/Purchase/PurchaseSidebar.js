@@ -8,11 +8,15 @@ function PurchaseSidebar() {
 
   const menu = [
     { label: 'Request for Quotation', to: '/rfq' },
+    { label: 'Vendor View Response', to: '/vendor-view' },
      { label: 'Vendor Quotation', to: '/vendorquot' },
     //  { label: 'Vendor Response', to: '/vendor-response' },
-     { label: 'Vendor View Response', to: '/vendor-view' },
-     { label: 'Purchase Requisition', to: '/purchasereq' },
+     
+      { label: 'Approved Matrix', to: '/approve' },
+      { label: 'Payment Terms', to: '/payment' },
+    //  { label: 'Purchase Requisition', to: '/purchasereq' },
     { label: 'Purchase Request', to: '/purchase/request' },
+    
     { label: 'Purchase Order', to: '/purchaseorder' },
     { label: 'Vendor Billing', to: '/purchase/billing' },
     { label: 'PO Creation', to: '/purchase/po' },
@@ -20,8 +24,8 @@ function PurchaseSidebar() {
     { label: 'GRN & Receipts', to: '/purchase/grn' },
     { label: 'Bill Matching', to: '/purchase/bill' },
     { label: 'Pricing History', to: '/purchase/pricing' },
-    { label: 'Landed Cost', to: '/purchase/landed' },
-    { label: 'Approved Matrix', to: '/approve' }
+    { label: 'Landed Cost', to: '/purchase/landed' }
+   
   ];
 
   return (

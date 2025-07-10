@@ -1,3 +1,4 @@
+
 const mysql = require("mysql2");
 const dotenv = require("dotenv");
 
@@ -8,8 +9,7 @@ const connection = mysql.createConnection({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-});
-
+}); // ✅ THIS is the fix
 connection.connect((err) => {
   if (err) {
     console.error("❌ DB connection failed:", err.stack);
@@ -17,5 +17,4 @@ connection.connect((err) => {
   }
   console.log("✅ Connected to MySQL database");
 });
-
 module.exports = connection;
