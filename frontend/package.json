@@ -11,6 +11,7 @@
     "bootstrap": "^5.3.7",
     "chart.js": "^4.4.9",
     "chartjs": "^0.3.24",
+    "html2pdf.js": "^0.10.3",
     "lucide-react": "^0.515.0",
     "react": "^19.1.0",
     "react-bootstrap": "^2.10.10",
@@ -20,6 +21,7 @@
     "react-router-dom": "^7.6.2",
     "react-scripts": "5.0.1",
     "react-select": "^5.10.1",
+    "react-to-print": "^3.1.1",
     "react-toastify": "^11.0.5",
     "recharts": "^2.15.3",
     "web-vitals": "^2.1.4"

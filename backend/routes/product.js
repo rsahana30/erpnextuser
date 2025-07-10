@@ -1049,36 +1049,8 @@ router.post("/savevendor", (req, res) => {
     }
   );
 });
-
-
-// POST /api/savePurchase
-// router.post("/savePurchase", (req, res) => {
-//   const { referenceId, selectedProducts, vendors, locations, total } = req.body;
-
-//   const purchaseQuery = `
-//     INSERT INTO purchases (referenceId, productCode, description, uom, unitPrice, quantity, total, vendors, locations, grandTotal)
-//     VALUES ?
-//   `;
-
-//   const values = selectedProducts.map(p => [
-//     referenceId,
-//     p.productCode,
-//     p.description,
-//     p.uom,
-//     p.unitPrice,
-//     p.quantity,
-//     p.total,
-//     vendors.map(v => v.vendorName).join(", "),
-//     locations.map(l => l.locationName).join(", "),
-//     total
-//   ]);
-
-//   connection.query(purchaseQuery, [values], (err, result) => {
-//     if (err) return res.status(500).send(err);
-//     res.send({ message: "Purchase saved successfully" });
-//   });
-// });
-
+////////////////////////////////////////////////////////////////////////////////////
+//purchase request
 
 // GET /api/getPurchases
 router.get("/getPurchases", (req, res) => {
@@ -1106,8 +1078,6 @@ router.post("/savePurchaseSummary", async (req, res) => {
     res.status(500).json({ error: "Failed to save purchase summary" });
   }
 });
-
-
 
 
 
@@ -1164,156 +1134,195 @@ router.post("/savePurchase", async (req, res) => {
     res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 });
-router.get("/getTaxCode/:hsn", async (req, res) => {
-  const hsn = req.params.hsn;
-  try {
-    const [rows] = await connection.promise().query(
-      "SELECT tax_code FROM hsn_tax_mapping WHERE hsn_code = ?", [hsn]
-    );
 
-    if (rows.length > 0) {
-      res.json({ tax_code: rows[0].tax_code });
-    } else {
-      res.status(404).json({ message: "HSN code not found" });
+router.get("/purchase-orders", (req, res) => {
+  const query = `
+    SELECT 
+      referenceId, 
+      REPLACE(referenceId, 'PR', 'PO') AS poNumber 
+    FROM purchase_summary 
+    ORDER BY savedAt DESC
+  `;
+
+  console.log("🔍 Hitting /purchase-orders route");
+  console.log("🧠 Running Query: ", query);
+
+  connection.query(query, (err, results) => {
+    if (err) {
+      console.error("❌ Query Failed:", err);
+      return res.status(500).json({ error: "Internal Server Error" });
     }
-  } catch (error) {
-    console.error("Error fetching tax code:", error);
-    res.status(500).json({ message: "Server error" });
-  }
+
+    console.log("✅ Query Result: ", results);
+    res.json(results);
+  });
 });
 
+// 🚀 GET PO Details by PO Number
+router.get("/purchase-orders/:poNumber", (req, res) => {
+  const { poNumber } = req.params;
+  const referenceId = poNumber.replace("PO", "PR");
 
+  connection.query(
+    "SELECT * FROM purchase_summary WHERE referenceId = ?",
+    [referenceId],
+    (err, summaryResults) => {
+      if (err) {
+        console.error("❌ Error in purchase_summary:", err);
+        return res.status(500).json({ error: "Internal Server Error in summary" });
+      }
 
+      if (summaryResults.length === 0) {
+        return res.status(404).json({ error: "Purchase Order not found" });
+      }
 
+      connection.query(
+        "SELECT * FROM purchases WHERE referenceId = ?",
+        [referenceId],
+        (err2, itemResults) => {
+          if (err2) {
+            console.error("❌ Error in purchases:", err2);
+            return res.status(500).json({ error: "Internal Server Error in items" });
+          }
 
+          // Compose detailed PO document
+          const document = {
+            poNumber,
+            referenceId,
+            summary: summaryResults[0],
+            items: itemResults.map((item, idx) => ({
+              itemNo: idx + 1,
+              productCode: item.productCode,
+              description: item.description,
+              uom: item.uom,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              total: item.total,
+              discount: item.discount,
+              netPrice: item.netPrice,
+              actualPrice: item.actualPrice,
+              deliveryDate: item.deliveryDate,
+              taxCode: item.taxCode,
+              deliveryCost: item.deliveryCost,
+              vendor: {
+                vendorCode: item.vendorCode,
+                vendorName: item.vendorName,
+                vendorType: item.vendorType,
+                vendorAddress: item.vendorAddress,
+                vendorCountry: item.vendorCountry,
+                vendorState: item.vendorState,
+                vendorPostalCode: item.vendorPostalCode,
+                vendorEmail: item.vendorEmail,
+                vendorGST: item.vendorGST,
+                vendorRecon: item.vendorRecon
+              },
+              location: {
+                locationCode: item.locationCode,
+                locationName: item.locationName,
+                locationType: item.locationType,
+                locationAddress: item.locationAddress,
+                locationCountry: item.locationCountry,
+                locationState: item.locationState,
+                locationPin: item.locationPin,
+                locationEmail: item.locationEmail,
+                locationGST: item.locationGST
+              }
+            }))
+          };
 
-// router.get("/getApprovers", (req, res) => {
-//   const sql = "SELECT id, name FROM approvers";
-//   connection.query(sql, (err, results) => {
-//     if (err) {
-//       console.error("Error fetching approvers:", err);
-//       return res.status(500).json({ error: "Failed to fetch approvers" });
-//     }
-//     res.json(results);
-//   });
-// });
+          res.json(document);
+        }
+      );
+    }
+  );
+});
+// 🚀 Save Purchase Summary (no await)
+router.post("/savePurchaseSummary", (req, res) => {
+  const { referenceId, total, discount, netPrice, delivery, actualPrice } = req.body;
 
-// // ✅ Save Approval Matrix
-// router.post("/saveApprovalMatrix", (req, res) => {
-//   const {
-//     productGroup, controller, location, department,
-//     rangeFrom, rangeTo, currency, approvalName
-//   } = req.body;
+  const query = `
+    INSERT INTO purchase_summary (referenceId, total, discount, netPrice, delivery, actualPrice)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      total = VALUES(total),
+      discount = VALUES(discount),
+      netPrice = VALUES(netPrice),
+      delivery = VALUES(delivery),
+      actualPrice = VALUES(actualPrice)
+  `;
 
-//   const sql = `INSERT INTO approval_matrix 
-//     (productGroup, controller, location, department, rangeFrom, rangeTo, currency, approvalName)
-//     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+  connection.query(
+    query,
+    [referenceId, total, discount, netPrice, delivery, actualPrice],
+    (err, result) => {
+      if (err) {
+        console.error("❌ Error in /savePurchaseSummary:", err);
+        return res.status(500).json({ error: "Failed to save purchase summary" });
+      }
+      res.json({ success: true });
+    }
+  );
+});
 
-//   connection.query(sql, [productGroup, controller, location, department, rangeFrom, rangeTo, currency, approvalName],
-//     (err, result) => {
-//       if (err) {
-//         console.error("Error inserting matrix:", err);
-//         return res.status(500).json({ error: "Failed to save matrix" });
-//       }
-//       res.json({ success: true, id: result.insertId });
-//     });
-// });
+// 🚀 Get Saved Summaries
+router.get("/getSavedSummaries", (req, res) => {
+  connection.query("SELECT referenceId FROM purchase_summary", (err, rows) => {
+    if (err) {
+      console.error("❌ Error in /getSavedSummaries:", err.message);
+      return res.status(500).json({ error: "Failed to fetch saved summaries" });
+    }
+    res.json(rows);
+  });
+});
 
-// // ✅ Get Approval Matrix list
-// router.get("/getApprovalMatrix", (req, res) => {
-//   const sql = "SELECT * FROM approval_matrix";
-//   connection.query(sql, (err, rows) => {
-//     if (err) {
-//       console.error("Error fetching matrix:", err);
-//       return res.status(500).json({ error: "Failed to fetch matrix" });
-//     }
-//     res.json(rows);
-//   });
-// });
+// 🚀 Save Purchase Items
+router.post("/savePurchase", (req, res) => {
+  const { referenceId, selectedProducts, vendors, locations, total } = req.body;
 
-// const verifyToken = (req, res, next) => {
-//   const token = req.headers["authorization"];
-//   if (!token) return res.status(403).json({ message: "Token required" });
+  const tasks = [];
+  selectedProducts.forEach((product) => {
+    vendors.forEach((vendor) => {
+      locations.forEach((location) => {
+        tasks.push([
+          referenceId,
+          product.productCode,
+          product.description,
+          product.uom,
+          product.unitPrice,
+          product.quantity,
+          product.total || 0,
+          total,
+          vendor.vendorCode,
+          vendor.vendorName,
+          vendor.country,
+          vendor.gstcode,
+          location.locationCode,
+          location.locationName,
+          location.country,
+          location.gstcode,
+        ]);
+      });
+    });
+  });
 
-//   try {
-//     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-//     req.user = decoded; // attach user info to request
-//     next();
-//   } catch (err) {
-//     res.status(401).json({ message: "Invalid token" });
-//   }
-// };
-// router.get("/getAssignedOrders", verifyToken, (req, res) => {
-//   const approverName = req.user.name;
+  const query = `
+    INSERT INTO purchases (
+      referenceId, productCode, description, uom, unitPrice, quantity, total, grandTotal,
+      vendorCode, vendorName, vendorCountry, vendorGST,
+      locationCode, locationName, locationCountry, locationGST
+    ) VALUES ?
+  `;
 
-//   const query = `
-//     SELECT p.*
-//     FROM purchases p
-//     JOIN approval_matrix a
-//     ON p.productGroup = a.productGroup
-//        AND p.controller = a.controller
-//        AND p.location = a.location
-//        AND p.currency = a.currency
-//     WHERE FIND_IN_SET(?, a.approvalName)
-//   `;
+  connection.query(query, [tasks], (err, result) => {
+    if (err) {
+      console.error("❌ Error saving purchase:", err);
+      return res.status(500).json({ success: false, message: "Internal Server Error" });
+    }
+    res.json({ success: true, message: "✅ Purchase saved successfully" });
+  });
+});
 
-//   connection.query(query, [approverName], (err, results) => {
-//     if (err) return res.status(500).json({ message: "Failed to fetch orders" });
-//     res.json(results);
-//   });
-// });
-
-// // ✅ Approve or Reject Order
-// router.post("/approvePurchaseOrder", verifyToken, (req, res) => {
-//   const { orderId, action } = req.body;
-//   const approver = req.user.name;
-
-//   const updateQuery = `UPDATE purchases SET approvalStatus = ?, approvedBy = ? WHERE id = ?`;
-
-//   connection.query(updateQuery, [action, approver, orderId], (err, result) => {
-//     if (err) return res.status(500).json({ message: "Approval failed" });
-//     res.json({ message: `Order ${action}` });
-//   });
-// });
-// router.get("/assigned-orders", (req, res) => {
-//   const user = req.query.username;
-
-//   const query = `
-//     SELECT * FROM PurchaseOrders
-//     WHERE approver1 = ? OR approver2 = ? OR approver3 = ?
-//   `;
-//   connection.query(query, [user, user, user], (err, results) => {
-//     if (err) {
-//       console.error("Error fetching assigned orders:", err);
-//       return res.status(500).json({ error: "Server error" });
-//     }
-//     res.json(results);
-//   });
-// });
-
-// router.post("/approve", (req, res) => {
-//   const { id, status, approver } = req.body;
-
-//   const query = `UPDATE PurchaseOrders SET status = ?, approvedBy = ? WHERE id = ?`;
-//   connection.query(query, [status, approver, id], (err) => {
-//     if (err) {
-//       console.error("Approval update failed:", err);
-//       return res.status(500).json({ error: "Approval failed" });
-//     }
-//     res.json({ message: "Purchase Order status updated" });
-//   });
-// });
-// router.get("/getApprovalMatrix", (req, res) => {
-//   const query = `SELECT * FROM approval_matrix`;
-
-//   connection.query(query, (err, results) => {
-//     if (err) {
-//       console.error("Error fetching matrix:", err);
-//       return res.status(500).json({ error: "Failed to fetch matrix" });
-//     }
-//     res.json(results);
-//   });
-// });
+//////////////////////////////////////////////////////////////////////////////////////////////
 
 
 

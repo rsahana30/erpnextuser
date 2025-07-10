@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 import Modal from "bootstrap/js/dist/modal";
-
+import { useNavigate } from "react-router-dom";
 const PurchaseData = () => {
   const [filters, setFilters] = useState({
     productCode: "",
@@ -11,7 +11,7 @@ const PurchaseData = () => {
     brand: "",
     category: "",
   });
-
+ const navigate = useNavigate();
   const filterLabels = {
     productCode: "Product Code",
     productType: "Product Type",
@@ -43,6 +43,9 @@ const PurchaseData = () => {
 
 
 
+const handleConvertClick = () => {
+    navigate("/purchaseorder");
+  };
 
  useEffect(() => {
   axios.get("http://localhost:5000/api/getPurchases").then((res) => {
@@ -609,9 +612,9 @@ useEffect(() => {
 
 
   <div className="text-end">
-    <button className="btn btn-primary" >
-      Convert to PO
-    </button>
+    <button className="btn btn-primary" onClick={handleConvertClick}>
+        Convert to PO
+      </button>
   </div>
 </div>
 

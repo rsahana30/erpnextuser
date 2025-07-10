@@ -21,6 +21,7 @@ import Vendorlogin from './components/Vendorlogin';
 import VendorResponseView from './components/Purchase/VendorResponseView';
 import PaymentTerms from './components/Purchase/PaymentTerms';
 import PurchaseData from './components/Purchase/PurchaseData';
+import PurchaseOrderView from './components/Purchase/PurchaseOrderView';
 
 function App() {
   return (
@@ -56,6 +57,8 @@ function App() {
         <Route path='/vendorquot' element={<VendorQuotation/>} />
         <Route path='/purchasereq' element={<PurchaseRequisition/>} />
         <Route path='/purchase/request' element={<PurchaseData/>}/>
+        <Route path="/order/:poNumber" element={<PurchaseOrderView/>} />
+
 
 
       </Routes>

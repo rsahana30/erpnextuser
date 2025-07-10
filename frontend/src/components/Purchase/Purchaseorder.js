@@ -1,66 +1,65 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
-const Purchaseorder = () => {
-  const [matrixData, setMatrixData] = useState([]);
+const PurchaseOrderList = () => {
+  const [poList, setPoList] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchMatrix();
+    fetchPOs();
   }, []);
 
-  const fetchMatrix = async () => {
+  const fetchPOs = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/getApprovalMatrix");
-      setMatrixData(res.data);
-    } catch (err) {
-      console.error("Failed to fetch matrix", err);
+      const res = await axios.get("http://localhost:5000/api/purchase-orders"); // <-- Update your endpoint
+      setPoList(res.data);
+      console.log(res);
+      
+    } catch (error) {
+      console.error("Error fetching purchase orders:", error);
     }
   };
 
-  const handleApprove = async (id) => {
-    alert(`Approved matrix ID: ${id}`);
-    // Optionally send update to backend here
+  const handleView = (poNumber) => {
+    navigate(`/order/${poNumber}`);
   };
 
   return (
     <div className="container mt-4">
-      <h3 className="mb-3">Approval Matrix Table</h3>
-      <table className="table table-bordered table-striped">
-        <thead className="table-dark">
+      <h3>Purchase Orders</h3>
+      <table className="table table-bordered mt-3">
+        <thead className="table-light">
           <tr>
-            <th>Product Group</th>
-            <th>Controller</th>
-            <th>Location</th>
-            <th>Department</th>
-            <th>Range From</th>
-            <th>Range To</th>
-            <th>Currency</th>
-            <th>Approval Name</th>
+            <th>PO Number</th>
+            <th>Reference ID</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody>
-          {matrixData.map((row) => (
-            <tr key={row.id}>
-              <td>{row.productGroup}</td>
-              <td>{row.controller}</td>
-              <td>{row.location}</td>
-              <td>{row.department}</td>
-              <td>{row.rangeFrom}</td>
-              <td>{row.rangeTo}</td>
-              <td>{row.currency}</td>
-              <td>{row.approvalName}</td>
+          {poList.map((po, index) => (
+            <tr key={index}>
+              <td>{po.poNumber}</td>
+              <td>{po.referenceId}</td>
               <td>
-                <button className="btn btn-success" onClick={() => handleApprove(row.id)}>
-                  Approve
+                <button
+                  className="btn btn-primary"
+                  onClick={() => handleView(po.poNumber)}
+                >
+                  View PO
                 </button>
               </td>
             </tr>
           ))}
+          {poList.length === 0 && (
+            <tr>
+              <td colSpan="3" className="text-center">No Purchase Orders Found</td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
   );
 };
 
-export default Purchaseorder;
+export default PurchaseOrderList;
