@@ -43,7 +43,7 @@ const PurchaseOrderList = () => {
               <td>{po.referenceId}</td>
               <td>
                 <button
-                  className="btn btn-primary"
+                  className="btn btn-secondary"
                   onClick={() => handleView(po.poNumber)}
                 >
                   View PO

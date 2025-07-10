@@ -588,7 +588,7 @@ useEffect(() => {
             <td>₹{actualPrice.toFixed(2)}</td>
             <td>
               <button
-                className="btn btn-outline-success btn-sm"
+                className="btn btn-outline-dark btn-sm"
                 disabled={savedSummaries[refId]} // ✅ Disable if ref is marked saved
  // 🔒 Disable Save button
                 onClick={() =>
@@ -612,7 +612,7 @@ useEffect(() => {
 
 
   <div className="text-end">
-    <button className="btn btn-primary" onClick={handleConvertClick}>
+    <button className="btn btn-secondary" onClick={handleConvertClick}>
         Convert to PO
       </button>
   </div>

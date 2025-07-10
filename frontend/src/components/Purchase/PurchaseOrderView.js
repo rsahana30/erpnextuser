@@ -43,7 +43,7 @@ const PurchaseOrderView = () => {
     <div className="container mt-4">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2>Purchase Order</h2>
-        <button className="btn btn-primary" onClick={downloadAsPDF}>Download PDF</button>
+        <button className="btn btn-dark" onClick={downloadAsPDF}>Download PDF</button>
       </div>
 
       <div id="print-section" className="p-4 border bg-white shadow">
