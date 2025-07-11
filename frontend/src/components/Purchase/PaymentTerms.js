@@ -24,7 +24,17 @@ const PaymentTerms = () => {
   const fetchTerms = () => {
     axios
       .get("http://localhost:5000/api/payment-terms")
-      .then((res) => setTerms(res.data))
+      .then((res) => {
+        // Parse payments if needed
+        const formatted = res.data.map((term) => ({
+          ...term,
+          payments:
+            typeof term.payments === "string"
+              ? JSON.parse(term.payments)
+              : term.payments,
+        }));
+        setTerms(formatted);
+      })
       .catch((err) => console.error("Payment terms fetch error:", err));
   };
 
@@ -66,7 +76,7 @@ const PaymentTerms = () => {
 
     try {
       await axios.post("http://localhost:5000/api/payment-terms", form);
-      alert("Payment terms saved!");
+      alert("✅ Payment terms saved!");
       setForm({
         productCode: "",
         description: "",
@@ -76,7 +86,7 @@ const PaymentTerms = () => {
       fetchTerms();
     } catch (err) {
       console.error("Save error:", err);
-      alert("Failed to save payment terms.");
+      alert("❌ Failed to save payment terms.");
     }
   };
 
@@ -87,7 +97,7 @@ const PaymentTerms = () => {
       <form className="card p-4 shadow-sm" onSubmit={handleSubmit}>
         <div className="row mb-3">
           <div className="col-md-6">
-            <label>Product Code</label>
+            <label className="form-label">Product Code</label>
             <select
               name="productCode"
               value={form.productCode}
@@ -105,7 +115,7 @@ const PaymentTerms = () => {
           </div>
 
           <div className="col-md-6">
-            <label>Product Description</label>
+            <label className="form-label">Product Description</label>
             <input
               name="description"
               value={form.description}
@@ -114,40 +124,45 @@ const PaymentTerms = () => {
             />
           </div>
         </div>
+
         <div className="row mb-4">
           <div className="col-md-3">
-            <label>🧾 Net Days</label>
+            <label className="form-label">🧾 Net Days</label>
             <input
               type="number"
               name="netDays"
               value={form.netDays}
               onChange={handleChange}
               className="form-control"
+              required
             />
           </div>
         </div>
-
 
         <h5 className="text-secondary mt-3 mb-2">📅 Discount Payment Terms</h5>
         {form.payments.map((pay, i) => (
           <div className="row mb-3" key={i}>
             <div className="col-md-2">
-              <label>{`Term ${i + 1} Days`}</label>
+              <label className="form-label">{`Term ${i + 1} Days`}</label>
               <input
                 type="number"
                 className="form-control"
                 value={pay.days}
-                onChange={(e) => handlePaymentChange(i, "days", e.target.value)}
+                onChange={(e) =>
+                  handlePaymentChange(i, "days", e.target.value)
+                }
               />
             </div>
             <div className="col-md-2">
-              <label>{`Term ${i + 1} %`}</label>
+              <label className="form-label">{`Term ${i + 1} %`}</label>
               <input
                 type="number"
                 step="0.01"
                 className="form-control"
                 value={pay.percent}
-                onChange={(e) => handlePaymentChange(i, "percent", e.target.value)}
+                onChange={(e) =>
+                  handlePaymentChange(i, "percent", e.target.value)
+                }
               />
             </div>
           </div>
@@ -161,10 +176,11 @@ const PaymentTerms = () => {
           ➕ Add Payment Term
         </button>
 
-        
-        <button type="submit" className="btn btn-dark">
-          ✅ Save Payment Terms
-        </button>
+        <div>
+          <button type="submit" className="btn btn-dark">
+            ✅ Save Payment Terms
+          </button>
+        </div>
       </form>
 
       {/* Table Display */}
@@ -175,8 +191,8 @@ const PaymentTerms = () => {
             <thead className="table-light">
               <tr>
                 <th>Product Code</th>
-                <th>Description</th>
-                <th>Discount Terms</th>
+                {/* <th>Description</th>
+                <th>Discount Terms</th> */}
                 <th>Net Days</th>
               </tr>
             </thead>
@@ -184,14 +200,18 @@ const PaymentTerms = () => {
               {terms.map((term, i) => (
                 <tr key={i}>
                   <td>{term.productCode}</td>
-                  <td>{term.description}</td>
+                  {/* <td>{term.description}</td>
                   <td>
-                    {term.payments?.map((p, j) => (
-                      <div key={j}>
-                        {p.days} days / {p.percent}%
-                      </div>
-                    ))}
-                  </td>
+                    {term.payments?.length > 0 ? (
+                      term.payments.map((p, j) => (
+                        <div key={j}>
+                          {p.days} days / {p.percent}%
+                        </div>
+                      ))
+                    ) : (
+                      <div>-</div>
+                    )}
+                  </td> */}
                   <td>{term.netDays}</td>
                 </tr>
               ))}

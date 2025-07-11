@@ -138,7 +138,7 @@ router.put("/updateProduct/:productCode", (req, res) => {
   });
 });
 
-
+///////////////////////////////////////////////////////////////////////////////
 
 
 
@@ -241,7 +241,7 @@ router.get("/reconAccounts", (req, res) => {
 });
 
 
-
+////////////////////////////////////////////////////////////////////////
 
 
 
@@ -1324,6 +1324,258 @@ router.post("/savePurchase", (req, res) => {
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 
+router.get("/getPurchases/:poNumber", (req, res) => {
+  const poNumber = req.params.poNumber;
+
+  const query = `
+    SELECT 
+      p.referenceId AS poNumber,
+      p.productCode,
+      p.description,
+      p.quantity,
+      p.unitPrice,
+      p.uom,
+      p.vendor,
+      p.location
+    FROM purchases p
+    WHERE p.referenceId = ?
+  `;
+
+  connection.query(query, [poNumber], (err, results) => {
+    if (err) return res.status(500).send(err);
+    res.json(results);
+  });
+});
+
+// Save Goods Receipt
+router.get("/get-goods-receipt/:referenceId", (req, res) => {
+  const { referenceId } = req.params;
+
+  const purchaseQuery = `
+    SELECT * FROM purchases WHERE referenceId = ?
+  `;
+  const summaryQuery = `
+    SELECT * FROM purchase_summary WHERE referenceId = ?
+  `;
+
+  connection.query(purchaseQuery, [referenceId], (err, purchaseResults) => {
+    if (err) return res.status(500).send(err);
+    if (purchaseResults.length === 0) return res.status(404).send("No purchases found.");
+
+    connection.query(summaryQuery, [referenceId], (err, summaryResults) => {
+      if (err) return res.status(500).send(err);
+
+      const summary = summaryResults[0] || {};
+      const items = purchaseResults;
+      const vendor = {
+        vendorCode: items[0].vendorCode,
+        vendorName: items[0].vendorName,
+        vendorAddress: items[0].vendorAddress,
+        vendorCountry: items[0].vendorCountry,
+        vendorState: items[0].vendorState,
+        vendorEmail: items[0].vendorEmail,
+        vendorGST: items[0].vendorGST,
+        vendorRecon: items[0].vendorRecon,
+      };
+
+      const location = {
+        locationCode: items[0].locationCode,
+        locationName: items[0].locationName,
+        locationType: items[0].locationType,
+        locationAddress: items[0].locationAddress,
+        locationCountry: items[0].locationCountry,
+        locationState: items[0].locationState,
+        locationEmail: items[0].locationEmail,
+        locationGST: items[0].locationGST,
+      };
+
+      res.send({ items, summary, vendor, location });
+    });
+  });
+});
+
+router.post("/post-grn", (req, res) => {
+  const grns = req.body;
+  const currentYear = new Date().getFullYear();
+
+  const getSequence = `
+    INSERT INTO grn_sequence (year, count)
+    VALUES (?, 1)
+    ON DUPLICATE KEY UPDATE count = count + 1
+  `;
+
+  connection.query(getSequence, [currentYear], (err) => {
+    if (err) return res.status(500).send(err);
+
+    connection.query("SELECT count FROM grn_sequence WHERE year = ?", [currentYear], (err2, result2) => {
+      if (err2) return res.status(500).send(err2);
+
+      const count = result2[0].count;
+      const grnNumber = `GRN-${currentYear}-${String(count).padStart(4, "0")}`;
+
+      const values = grns.map(g => [
+        grnNumber,
+        g.referenceId,
+        g.postingDate,
+        g.productCode,
+        g.grnQuantity,
+        g.unitPrice,
+        g.totalPrice
+      ]);
+
+      const insertQuery = `
+        INSERT INTO goods_receipt
+        (grnNumber, referenceId, postingDate, productCode, grnQuantity, unitPrice, totalPrice)
+        VALUES ?
+      `;
+
+      connection.query(insertQuery, [values], (err3, result3) => {
+        if (err3) return res.status(500).send(err3);
+        res.send({ message: "GRN posted", grnNumber, inserted: result3.affectedRows });
+      });
+    });
+  });
+});
+
+router.get("/grn-list", (req, res) => {
+  const query = `
+    SELECT * FROM goods_receipt ORDER BY grnNumber DESC, id ASC
+  `;
+  connection.query(query, (err, results) => {
+    if (err) return res.status(500).send(err);
+    res.send(results);
+  });
+});
+
+////////////////////////////////////////////////////////////////////////
+//invoice receipt
+router.get("/get-po-details/:poNumber", (req, res) => {
+  const poNumber = req.params.poNumber;
+  const sql = `SELECT * FROM purchases WHERE referenceId = ?`;
+  connection.query(sql, [poNumber], (err, results) => {
+    if (err) return res.status(500).send(err);
+    if (results.length === 0) return res.status(404).send("PO not found");
+
+    const items = results.map((row) => ({
+      productCode: row.productCode,
+      description: row.description,
+      uom: row.uom,
+      poQty: row.quantity,
+      grQty: row.quantity, // assuming full GRN for demo
+      actualPrice: row.total,
+    }));
+
+    const vendorDetails = {
+      vendorName: results[0].vendorName,
+      vendorCode: results[0].vendorCode,
+    };
+
+    const invoiceSummary = {
+      invoiceValue: results.reduce((acc, row) => acc + parseFloat(row.total || 0), 0),
+      balance: results.reduce((acc, row) => acc + parseFloat(row.total || 0), 0),
+    };
+
+    res.json({ items, vendorDetails, invoiceSummary });
+  });
+});
+
+// Route to post invoice receipt
+router.post("/post-invoice", (req, res) => {
+  const {
+    poNumber,
+    invoiceDate,
+    invoiceValue,
+    balance,
+    vendor,
+    taxCode,
+    taxValue,
+    items
+  } = req.body;
+
+  console.log("Received invoice data:", req.body);
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).send("No items provided");
+  }
+
+  const invoiceNumber = `INV-${Date.now()}`;
+  const invoiceVal = parseFloat(invoiceValue || 0);
+  const balanceVal = parseFloat(balance || 0);
+  const taxVal = parseFloat(taxValue || 0);
+
+  const insertInvoiceSql = `
+    INSERT INTO invoice_receipt
+    (invoiceNumber, poNumber, invoiceDate, invoiceValue, balance, vendorName, taxCode, taxValue)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  connection.query(
+    insertInvoiceSql,
+    [invoiceNumber, poNumber, invoiceDate, invoiceVal, balanceVal, vendor, taxCode, taxVal],
+    (err) => {
+      if (err) {
+        console.error("Invoice receipt insert error:", err);
+        return res.status(500).send(err);
+      }
+
+      const itemInserts = items.map((item) => [
+        invoiceNumber,
+        item.productCode,
+        item.description,
+        item.uom,
+        parseInt(item.poQty) || 0,
+        parseInt(item.grQty) || 0,
+        parseFloat(item.actualPrice) || 0
+      ]);
+
+      const itemSql = `
+        INSERT INTO invoice_items
+        (invoiceNumber, productCode, description, uom, poQty, grQty, actualPrice)
+        VALUES ?
+      `;
+
+      connection.query(itemSql, [itemInserts], (err2) => {
+        if (err2) {
+          console.error("Invoice items insert error:", err2);
+          return res.status(500).send(err2);
+        }
+
+        res.json({ message: "Invoice saved", invoiceNumber });
+      });
+    }
+  );
+});
+
+router.get("/invoice-po-list", (req, res) => {
+  connection.query(
+    "SELECT DISTINCT referenceId FROM goods_receipt ORDER BY referenceId DESC",
+    (err, results) => {
+      if (err) return res.status(500).send(err);
+      res.json(results.map(row => row.referenceId));
+    }
+  );
+});
+router.get("/invoice-data/:poNumber", (req, res) => {
+  const poNumber = req.params.poNumber;
+
+  const grnQuery = "SELECT * FROM goods_receipt WHERE referenceId = ?";
+  const vendorQuery = "SELECT * FROM purchases WHERE referenceId = ? LIMIT 1";
+
+  connection.query(grnQuery, [poNumber], (err, grnRows) => {
+    if (err) return res.status(500).send(err);
+
+    connection.query(vendorQuery, [poNumber], (err2, vendorRow) => {
+      if (err2) return res.status(500).send(err2);
+
+      const vendor = vendorRow.length ? {
+        vendorCode: vendorRow[0].vendorCode,
+        vendorName: vendorRow[0].vendorName,
+      } : {};
+
+      res.json({ items: grnRows, vendor });
+    });
+  });
+});
 
 
 module.exports = router;

@@ -22,6 +22,8 @@ import VendorResponseView from './components/Purchase/VendorResponseView';
 import PaymentTerms from './components/Purchase/PaymentTerms';
 import PurchaseData from './components/Purchase/PurchaseData';
 import PurchaseOrderView from './components/Purchase/PurchaseOrderView';
+import GoodsReceipt from './components/Purchase/GoodsReceipt';
+import InvoiceReceipt from './components/Purchase/InvoiceReceipt';
 
 function App() {
   return (
@@ -58,6 +60,8 @@ function App() {
         <Route path='/purchasereq' element={<PurchaseRequisition/>} />
         <Route path='/purchase/request' element={<PurchaseData/>}/>
         <Route path="/order/:poNumber" element={<PurchaseOrderView/>} />
+        <Route path="/goods" element={<GoodsReceipt/>} />
+        <Route path="/invoice" element={<InvoiceReceipt/>} />
 
 
 

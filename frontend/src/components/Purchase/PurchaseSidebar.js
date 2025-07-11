@@ -18,13 +18,16 @@ function PurchaseSidebar() {
     { label: 'Purchase Request', to: '/purchase/request' },
     
     { label: 'Purchase Order', to: '/purchaseorder' },
-    { label: 'Vendor Billing', to: '/purchase/billing' },
-    { label: 'PO Creation', to: '/purchase/po' },
-    { label: 'Approval Hierarchy', to: '/purchase/approval' },
-    { label: 'GRN & Receipts', to: '/purchase/grn' },
-    { label: 'Bill Matching', to: '/purchase/bill' },
-    { label: 'Pricing History', to: '/purchase/pricing' },
-    { label: 'Landed Cost', to: '/purchase/landed' }
+    { label: 'Goods Receipt', to: '/goods' },
+    { label: 'Invoice Receipt', to: '/invoice' },
+    
+    // { label: 'Vendor Billing', to: '/purchase/billing' },
+    // { label: 'PO Creation', to: '/purchase/po' },
+    // { label: 'Approval Hierarchy', to: '/purchase/approval' },
+    // { label: 'GRN & Receipts', to: '/purchase/grn' },
+    // { label: 'Bill Matching', to: '/purchase/bill' },
+    // { label: 'Pricing History', to: '/purchase/pricing' },
+    // { label: 'Landed Cost', to: '/purchase/landed' }
    
   ];
 
